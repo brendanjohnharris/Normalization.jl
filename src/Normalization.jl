@@ -43,19 +43,28 @@ function mapdims!(f, x...; dims)
     underdims = setdiff(totaldims, overdims)
     @assert all(all(size.(x[2:end], i) .== 1) for i ∈ overdims)
     @assert all(all(size(x[1], i) .== size.(x, i)) for i ∈ underdims)
-    idxs = [(i ∈ overdims) ? axes(x[1], i) : 1 for i ∈ totaldims]
-    pidxs = ones(Int, size(totaldims))
     underidxs = CartesianIndices(Tuple([axes(x[1], i) for i ∈ underdims]))
-    _mapdims!(x, f, underidxs, underdims, idxs, pidxs)
+    _mapdims!(x, f, underdims, underidxs)
 end
 
-function _mapdims!(x, f, underidxs, underdims, idxs, pidxs)
-    for i ∈ Tuple.(underidxs)
-        idxs[underdims] .= i
-        pidxs[underdims] .= i
-        @inbounds x[1][idxs...] = f.(x[1][idxs...], [p[pidxs...] for p ∈ x[2:end]]...)
+function _mapdims!(x, f, underdims, underidxs)
+    f!(x...) = (x[1] .= f(x...))
+    for idxs ∈ Tuple.(underidxs)
+        selector = _selectslice(underdims, idxs)
+        f!(selector.(x)...)
     end
 end
+
+function _selectslice(dims, idxs)
+    _selectdim(a, b) = x -> selectdim(x, a, b)
+    st = sortperm([dims...])
+    dims = dims[st] .- (0:length(dims)-1)
+    idxs = idxs[st]
+    ∘(reverse([_selectdim(dim, idxs[i]) for (i, dim) ∈ enumerate(dims)])...)
+    #[(dim, idxs[i]) for (i, dim) ∈ enumerate(dims[st])]
+end
+selectslice(x, args...) = _selectslice(args...)(x)
+
 
 
 end

@@ -8,8 +8,8 @@ mutable struct ZScore <: AbstractNormalization
     function ZScore(dims, p=nothing)
         isnothing(p) || (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
         𝑝 = (mean, std)
-        𝑓 = (x, 𝜇, 𝜎)->(x - 𝜇)/𝜎
-        𝑓⁻¹ = (y, 𝜇, 𝜎) -> y*𝜎 + 𝜇
+        𝑓 = (x, 𝜇, 𝜎)->(x .- 𝜇)./𝜎
+        𝑓⁻¹ = (y, 𝜇, 𝜎) -> y.*𝜎 .+ 𝜇
         new(dims, p, 𝑝, 𝑓, 𝑓⁻¹)
     end
 end
