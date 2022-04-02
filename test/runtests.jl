@@ -1,29 +1,29 @@
+import StatsBase as SB
+using BenchmarkTools
 using Normalization
-import Normalization: ZScore
 using Statistics
 using Test
 
-@testset "Normalization" begin # Adapted from https://github.com/JuliaStats/StatsBase.jl/blob/e8ab26500d9a34ef358b2d3cf619ae41c71785fc/test/transformations.jl
+@testset "2D normalization" begin # Adapted from https://github.com/JuliaStats/StatsBase.jl/blob/e8ab26500d9a34ef358b2d3cf619ae41c71785fc/test/transformations.jl
 
     #* 2D array
-    X = rand(5, 8)
-    X_ = copy(X)
+    _X = rand(10, 5)
+    X = copy(_X)
 
     # * ZScore a 2D array over the first dim.
-    X = copy(X_)
-    T = Normalization.fit(ZScore, X, dims=1)
-    Y = Normalization.normalize(X, T)
+    T = fit(ZScore, X, dims=1)
+    Y = normalize(X, T)
     @test !isnothing(T.p)
     @test length(T.p) == 2
     @test length(T.p[1]) == length(T.p[2]) == size(X, 2)
     @test Y ≈ (X.-mean(X, dims=1))./std(X, dims=1)
-    # @test reconstruct(T, Y) ≈ X
-    # @test transform!(T, X) === X
-    # @test isequal(X, Y)
-    # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(ZScoreTransform, X, dims=1, scale=false)
     # Y = transform(t, X)
     # @test length(t.mean) == 8
@@ -33,9 +33,9 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(ZScoreTransform, X, dims=1)
     # Y = transform(t, X)
     # @test length(t.mean) == 8
@@ -46,9 +46,9 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(ZScoreTransform, X, dims=2)
     # Y = transform(t, X)
     # @test length(t.mean) == 5
@@ -59,9 +59,9 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(UnitRangeTransform, X, dims=1, unit=false)
     # Y = transform(t, X)
     # @test length(t.min) == 8
@@ -71,9 +71,9 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(UnitRangeTransform, X, dims=1)
     # Y = transform(t, X)
     # @test isa(t, AbstractDataTransform)
@@ -85,9 +85,9 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(UnitRangeTransform, X, dims=2)
     # Y = transform(t, X)
     # @test isa(t, AbstractDataTransform)
@@ -98,11 +98,11 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
     # # vector
     # X = rand(10)
-    # X_ = copy(X)
+    # _X = copy(X)
 
     # t = fit(ZScoreTransform, X, dims=1, center=false, scale=false)
     # Y = transform(t, X)
@@ -111,9 +111,9 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(ZScoreTransform, X, dims=1, center=false)
     # Y = transform(t, X)
     # @test Y ≈ X ./ std(X, dims=1)
@@ -122,9 +122,9 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(ZScoreTransform, X, dims=1, scale=false)
     # Y = transform(t, X)
     # @test Y ≈ X .- mean(X, dims=1)
@@ -133,9 +133,9 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(ZScoreTransform, X, dims=1)
     # Y = transform(t, X)
     # @test Y ≈ (X .- mean(X, dims=1)) ./ std(X, dims=1)
@@ -145,9 +145,9 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(UnitRangeTransform, X, dims=1)
     # Y = transform(t, X)
     # @test Y ≈ (X .- minimum(X, dims=1)) ./ (maximum(X, dims=1) .- minimum(X, dims=1))
@@ -156,9 +156,9 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
+    # @test Y ≈ _X
 
-    # X = copy(X_)
+    # X = copy(_X)
     # t = fit(UnitRangeTransform, X, dims=1, unit=false)
     # Y = transform(t, X)
     # @test Y ≈ X ./ (maximum(X, dims=1) .- minimum(X, dims=1))
@@ -168,6 +168,38 @@ using Test
     # @test transform!(t, X) === X
     # @test isequal(X, Y)
     # @test reconstruct!(t, Y) === Y
-    # @test Y ≈ X_
-
+    # @test Y ≈ _X
 end
+
+@testset "3D normalization" begin
+    _X = randn(10, 10, 100)
+    X = copy(_X)
+    T = fit(ZScore, X, dims=3)
+    Y = normalize(X, T)
+    Z = copy(_X)
+    for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
+        x = @view Z[i, :]
+        x .= (x.-mean(x))./std(x)
+    end
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test Y ≈ Z
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
+end
+
+@testset "StatsBase comparison" begin
+    X = rand(1000, 50)
+    Y = normalize(X, ZScore; dims=1)
+    Z = SB.standardize(SB.ZScoreTransform, X; dims=1)
+    @test Y ≈ Z
+end
+
+println("Normalization.jl")
+display(@benchmark normalize(rand(1000, 50), ZScore; dims=1))
+println("StatsBase.jl")
+display(@benchmark SB.standardize(SB.ZScoreTransform, rand(1000, 50); dims=1))
