@@ -199,7 +199,7 @@ end
     @test Y ≈ Z
 end
 
-println("Normalization.jl")
-display(@benchmark normalize(rand(1000, 50), ZScore; dims=1))
-println("StatsBase.jl")
-display(@benchmark SB.standardize(SB.ZScoreTransform, rand(1000, 50); dims=1))
+println("\nNormalization.jl")
+display(@benchmark normalize(rand(1000, 10000), ZScore; dims=1))
+println("\nStatsBase.jl")
+display(@benchmark SB.standardize(SB.ZScoreTransform, rand(1000, 10000); dims=1))
