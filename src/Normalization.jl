@@ -3,6 +3,7 @@ module Normalization
 using Statistics
 
 export ZScore,
+       RobustZScore,
        fit,
        normalize!,
        normalize,
@@ -10,18 +11,40 @@ export ZScore,
        denormalize
 
 abstract type AbstractNormalization end
-(T::AbstractNormalization)(dims, p) = T(dims, p)
+(𝒯::Type{<:AbstractNormalization})(dims) = 𝒯(;dims)
+function (𝒯::Type{<:AbstractNormalization})(dims, p)
+    isnothing(p) || (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
+    𝒯(;dims, p)
+end
 
-include.(["ZScore.jl", "Sigmoid.jl", "Robust.jl"])
+Base.@kwdef mutable struct ZScore <: AbstractNormalization
+    dims
+    p::Union{Nothing, NTuple{2, AbstractArray}} = nothing
+    𝑝::NTuple{2, Function} = (mean, std)
+    𝑓::Function = (x, 𝜇, 𝜎)->(x .- 𝜇)./𝜎
+    𝑓⁻¹::Function = (y, 𝜇, 𝜎) -> y.*𝜎 .+ 𝜇
+end
 
-fit!(T::AbstractNormalization, X::AbstractArray) = T.p = mapslices.(T.𝑝, (X,); dims=T.dims)
-fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims) = (T = 𝒯(dims); fit!(T, X); T)
+iqr = x -> quantile(x[:], 0.75) - quantile(x[:], 0.25)
+Base.@kwdef mutable struct RobustZScore <: AbstractNormalization
+    dims
+    p::Union{Nothing, NTuple{2, AbstractArray}} = nothing
+    𝑝::NTuple{2, Function} = (median, iqr)
+    𝑓::Function = (x, 𝜇, 𝜎)->1.35.*(x .- 𝜇)./𝜎 # Factor of 1.35 for consistency with SD of normal distribution
+    𝑓⁻¹::Function = (y, 𝜇, 𝜎) -> y.*𝜎/1.35 .+ 𝜇
+end
+
+function fit!(T::AbstractNormalization, X::AbstractArray)
+    dims = isnothing(T.dims) ? (1:ndims(X)) : T.dims
+    T.p = mapslices.(T.𝑝, (X,); dims)
+end
+fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = (T = 𝒯(dims); fit!(T, X); T)
 
 function normalize!(X::AbstractArray, T::AbstractNormalization)
     isnothing(T.p) && fit!(T, X)
     mapdims!(T.𝑓, X, T.p...; T.dims)
 end
-normalize!(X::AbstractArray, 𝒯::Type{<:AbstractNormalization}; dims) = normalize!(X, fit(𝒯, X; dims))
+normalize!(X::AbstractArray, 𝒯::Type{<:AbstractNormalization}; dims=nothing) = normalize!(X, fit(𝒯, X; dims))
 normalize(X::AbstractArray, args...; kwargs...) = (Y=copy(X); normalize!(Y, args...; kwargs...); Y)
 
 function denormalize!(X::AbstractArray, T::AbstractNormalization)
@@ -43,6 +66,9 @@ function mapdims!(f, x...; dims)
     underdims = setdiff(totaldims, overdims)
     @assert all(all(size.(x[2:end], i) .== 1) for i ∈ overdims)
     @assert all(all(size(x[1], i) .== size.(x, i)) for i ∈ underdims)
+    if sort(dims) == totaldims
+        return (x[1] .= f.(x...))
+    end
     _mapdims!(x, f, underdims, CartesianIndices(size(x[1])[underdims]))
 end
 
