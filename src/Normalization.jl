@@ -30,7 +30,7 @@ Base.@kwdef mutable struct RobustZScore <: AbstractNormalization
     dims
     p::Union{Nothing, NTuple{2, AbstractArray}} = nothing
     𝑝::NTuple{2, Function} = (median, iqr)
-    𝑓::Function = (x, 𝜇, 𝜎)->1.35.*(x .- 𝜇)./𝜎 # Factor of 1.35 for consistency with SD of normal distribution
+    𝑓::Function = (x, 𝜇, 𝜎)->1.35.*(x .- 𝜇)./𝜎 # ? Factor of 1.35 for consistency with SD of normal distribution
     𝑓⁻¹::Function = (y, 𝜇, 𝜎) -> y.*𝜎/1.35 .+ 𝜇
 end
 
@@ -66,7 +66,7 @@ function mapdims!(f, x...; dims)
     underdims = setdiff(totaldims, overdims)
     @assert all(all(size.(x[2:end], i) .== 1) for i ∈ overdims)
     @assert all(all(size(x[1], i) .== size.(x, i)) for i ∈ underdims)
-    if sort(dims) == totaldims
+    if sort([dims...]) == totaldims
         return (x[1] .= f.(x...))
     end
     _mapdims!(x, f, underdims, CartesianIndices(size(x[1])[underdims]))
@@ -82,9 +82,7 @@ function _mapdims!(x, f, dims, underidxs)
 end
 
 _selectdim(a, b) = x -> selectdim(x, a, b)
-
 _selectslice(dims, idxs) = ∘(reverse([_selectdim(dim, idxs[i]) for (i, dim) ∈ enumerate(dims)])...)
-
 function selectslice(x, dims, idxs)
     st = sortperm([dims...])
     dims = dims[st] .- (0:length(dims)-1)

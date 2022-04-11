@@ -192,6 +192,29 @@ end
     @test Y ≈ _X
 end
 
+@testset "ND normalization" begin
+    Nmax = 5
+    for _ = 1:10
+        ds = rand(2:Nmax)
+        sz = rand(2:ds, ds)
+        _X = rand(sz...)
+        Nnorm = rand(1:Nmax÷2)
+        normdims = rand(1:ds, Nnorm)
+        notnormdims = setdiff(1:ndims(_X), normdims)
+        X = copy(_X)
+        T = fit(ZScore, X, dims=normdims)
+        Y = normalize(X, T)
+        @test !isnothing(T.p)
+        @test length(T.p) == 2
+        @test size(T.p[1])[notnormdims] == size(T.p[2])[notnormdims] == size(X)[notnormdims]
+        @test denormalize(Y, T) ≈ X
+        @test_nowarn normalize!(X, T)
+        @test X == Y
+        @test_nowarn denormalize!(Y, T)
+        @test Y ≈ _X
+    end
+end
+
 @testset "StatsBase comparison" begin
     X = rand(1000, 50)
     Y = normalize(X, ZScore; dims=1)
