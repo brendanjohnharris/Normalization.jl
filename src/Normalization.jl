@@ -2,13 +2,15 @@ module Normalization
 
 using Statistics
 
-export ZScore,
-       RobustZScore,
-       fit,
-       normalize!,
-       normalize,
-       denormalize!,
-       denormalize
+export  fit,
+        normalize!,
+        normalize,
+        denormalize!,
+        denormalize,
+        ZScore,
+        RobustZScore,
+        Sigmoid,
+        RobustSigmoid
 
 abstract type AbstractNormalization end
 (𝒯::Type{<:AbstractNormalization})(dims) = 𝒯(;dims)
@@ -18,21 +20,40 @@ function (𝒯::Type{<:AbstractNormalization})(dims, p)
 end
 
 Base.@kwdef mutable struct ZScore <: AbstractNormalization
-    dims
+    dims = nothing
     p::Union{Nothing, NTuple{2, AbstractArray}} = nothing
     𝑝::NTuple{2, Function} = (mean, std)
     𝑓::Function = (x, 𝜇, 𝜎)->(x .- 𝜇)./𝜎
     𝑓⁻¹::Function = (y, 𝜇, 𝜎) -> y.*𝜎 .+ 𝜇
 end
 
+
 iqr = x -> quantile(x[:], 0.75) - quantile(x[:], 0.25)
 Base.@kwdef mutable struct RobustZScore <: AbstractNormalization
-    dims
+    dims = nothing
     p::Union{Nothing, NTuple{2, AbstractArray}} = nothing
-    𝑝::NTuple{2, Function} = (median, iqr)
-    𝑓::Function = (x, 𝜇, 𝜎)->1.35.*(x .- 𝜇)./𝜎 # ? Factor of 1.35 for consistency with SD of normal distribution
-    𝑓⁻¹::Function = (y, 𝜇, 𝜎) -> y.*𝜎/1.35 .+ 𝜇
+    𝑝::NTuple{2, Function} = (median, x->iqr(x)./1.35) # ? Factor of 1.35 for consistency with SD of normal distribution
+    𝑓::Function = ZScore().𝑓
+    𝑓⁻¹::Function = ZScore().𝑓⁻¹
 end
+
+
+Base.@kwdef mutable struct Sigmoid <: AbstractNormalization
+    dims = nothing
+    p::Union{Nothing, NTuple{2, AbstractArray}} = nothing
+    𝑝::NTuple{2, Function} = (mean, std)
+    𝑓::Function = (x, 𝜇, 𝜎) -> 1.0./(1 .+ exp.(.-(x.-𝜇)./𝜎))
+    𝑓⁻¹::Function = (y, 𝜇, 𝜎) -> .-𝜎.*log.(1.0./y .- 1) .+ 𝜇
+end
+
+Base.@kwdef mutable struct RobustSigmoid <: AbstractNormalization
+    dims = nothing
+    p::Union{Nothing, NTuple{2, AbstractArray}} = nothing
+    𝑝::NTuple{2, Function} = (median, x->iqr(x)./1.35)
+    𝑓::Function = Sigmoid().𝑓
+    𝑓⁻¹::Function = Sigmoid().𝑓⁻¹
+end
+
 
 function fit!(T::AbstractNormalization, X::AbstractArray)
     dims = isnothing(T.dims) ? (1:ndims(X)) : T.dims

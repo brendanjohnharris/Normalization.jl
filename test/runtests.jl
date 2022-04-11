@@ -192,6 +192,49 @@ end
     @test Y ≈ _X
 end
 
+
+@testset "Sigmoid" begin
+    _X = randn(10, 10, 100)
+    X = copy(_X)
+    T = fit(Sigmoid, X, dims=3)
+    Y = normalize(X, T)
+    Z = copy(_X)
+    for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
+        x = @view Z[i, :]
+        x .= 1.0./(1 .+ exp.(.-(x.-mean(x))./std(x)))
+    end
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test Y ≈ Z
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
+end
+
+@testset "RobustSigmoid" begin
+    _X = randn(10, 10, 100)
+    X = copy(_X)
+    T = fit(RobustSigmoid, X, dims=3)
+    Y = normalize(X, T)
+    Z = copy(_X)
+    for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
+        x = @view Z[i, :]
+        x .= 1.0./(1 .+ exp.(.-(x.-median(x))./(SB.iqr(x)./1.35)))
+    end
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test Y ≈ Z
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
+end
+
 @testset "ND normalization" begin
     Nmax = 5
     for _ = 1:10
