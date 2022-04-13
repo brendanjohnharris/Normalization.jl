@@ -7,12 +7,14 @@ export  fit,
         normalize,
         denormalize!,
         denormalize,
+        nansafe,
         ZScore,
         RobustZScore,
         NaNZScore,
         Sigmoid,
         RobustSigmoid,
-        NaNSigmoid
+        NaNSigmoid,
+        MinMax
 
 abstract type AbstractNormalization end
 (𝒯::Type{<:AbstractNormalization})(dims) = 𝒯(;dims)
@@ -38,9 +40,13 @@ macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
 end
 
 # * Common normalizations
-@_Normalization ZScore (mean, std)  (x, 𝜇, 𝜎) -> (x .- 𝜇)./𝜎  (y, 𝜇, 𝜎) -> y.*𝜎 .+ 𝜇
-@_Normalization Sigmoid (mean, std)    (x, 𝜇, 𝜎) -> 1.0./(1 .+ exp.(.-(x.-𝜇)./𝜎)) #=
-                                    =# (y, 𝜇, 𝜎) -> .-𝜎.*log.(1.0./y .- 1) .+ 𝜇
+@_Normalization ZScore (mean, std)         (x, 𝜇, 𝜎) -> (x .- 𝜇)./𝜎  #=
+                                        =# (y, 𝜇, 𝜎) -> y.*𝜎 .+ 𝜇
+@_Normalization Sigmoid (mean, std)        (x, 𝜇, 𝜎) -> 1.0./(1 .+ exp.(.-(x.-𝜇)./𝜎)) #=
+                                        =# (y, 𝜇, 𝜎) -> .-𝜎.*log.(1.0./y .- 1) .+ 𝜇
+@_Normalization MinMax (minimum, maximum)  (x, l, u) -> (x.-l)./(u-l) #=
+                                        =# (y, l, u) -> (u-l).*y .+ l
+
 _ZScore(name::Symbol, 𝑝) = eval(:(@_Normalization $name $𝑝 ZScore().𝑓 ZScore().𝑓⁻¹))
 _Sigmoid(name::Symbol, 𝑝) = eval(:(@_Normalization $name $𝑝 Sigmoid().𝑓 Sigmoid().𝑓⁻¹))
 
@@ -55,11 +61,16 @@ _nansafe(p) = x -> p(filter(!isnan, x))
 _nanNorm(N::Symbol, name::Symbol) = eval(:(@_Normalization $name _nansafe.(($N)().𝑝) ($N)().𝑓 ($N)().𝑓⁻¹))
 _nanNorm.(  [:ZScore,     :Sigmoid,    :RobustZScore,     :RobustSigmoid,],
             [:NaNZScore,  :NaNSigmoid, :NaNRobustZScore,  :NaNRobustSigmoid,])
+# nansafe!(T::AbstractNormalization) = (T.𝑝=_nansafe.(T.𝑝); ())
+# nansafe(T::AbstractNormalization) = (N = deepcopy(T); nansafe!(N); N)
+# nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = dims |> 𝒯 |> nansafe
+
 
 function fit!(T::AbstractNormalization, X::AbstractArray)
     dims = isnothing(T.dims) ? (1:ndims(X)) : T.dims
     T.p = mapslices.(T.𝑝, (X,); dims)
 end
+fit(T::AbstractNormalization, X::AbstractArray) = (fit!(T, X); T)
 fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = (T = 𝒯(dims); fit!(T, X); T)
 
 function normalize!(X::AbstractArray, T::AbstractNormalization)
