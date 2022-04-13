@@ -20,6 +20,7 @@ function (𝒯::Type{<:AbstractNormalization})(dims, p)
     isnothing(p) || (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
     𝒯(;dims, p)
 end
+(T::AbstractNormalization)(dims) = dims == () || (T.dims = dims)
 
 macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
     :(mutable struct $(esc(name)) <: AbstractNormalization
@@ -52,7 +53,7 @@ _Sigmoid(name::Symbol, 𝑝) = eval(:(@_Normalization $name $𝑝 Sigmoid().𝑓
 _iqr = x -> (quantile(x[:], 0.75) - quantile(x[:], 0.25))/1.35 # ? Divide by 1.35 so that std(x) ≈ _iqr(x) when x contains normally distributed values
 _robustNorm(name::Symbol, N::Symbol) = eval(:(@_Normalization $name (median, _iqr) ($N)().𝑓 ($N)().𝑓⁻¹))
 _robustNorm.([:RobustZScore,  :RobustSigmoid,],
-          [:ZScore,     :Sigmoid,])
+             [:ZScore,     :Sigmoid,])
 
 # * NaN-safe versions
 _nansafe(p) = x -> p(filter(!isnan, x))
@@ -61,11 +62,12 @@ nansafe(T::AbstractNormalization) = (N = deepcopy(T); nansafe!(N); N)
 nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = dims |> 𝒯 |> nansafe
 
 
-function fit!(T::AbstractNormalization, X::AbstractArray)
+function fit!(T::AbstractNormalization, X::AbstractArray; dims=())
+    T(dims)
     dims = isnothing(T.dims) ? (1:ndims(X)) : T.dims
     T.p = mapslices.(T.𝑝, (X,); dims)
 end
-fit(T::AbstractNormalization, X::AbstractArray) = (fit!(T, X); T)
+fit(T::AbstractNormalization, X::AbstractArray; kw...)=(T=deepcopy(T); fit!(T, X; kw...); T)
 fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = (T = 𝒯(dims); fit!(T, X); T)
 
 function normalize!(X::AbstractArray, T::AbstractNormalization)

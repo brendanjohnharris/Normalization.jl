@@ -235,6 +235,55 @@ end
     @test Y ≈ _X
 end
 
+
+@testset "NaNZScore" begin
+    _X = randn(10, 10, 100)
+    idxs = rand(1:prod(size(_X)), 100)
+    _X[idxs] .= NaN
+    X = copy(_X)
+    T = fit(nansafe(ZScore), X, dims=3)
+    Y = normalize(X, T)
+    Z = copy(_X)
+    for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
+        x = @view Z[i, :]
+        x .= (x.-mean(filter(!isnan, x)))./std(filter(!isnan, x))
+    end
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, Z[:])
+    @test filter!(!isnan, denormalize(Y, T)[:]) ≈ filter!(!isnan, X[:])
+    @test_nowarn normalize!(X, T)
+    @test filter!(!isnan, X[:]) == filter!(!isnan, Y[:])
+    @test_nowarn denormalize!(Y, T)
+    @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, _X[:])
+end
+
+
+@testset "NaNSigmoid" begin
+    _X = randn(10, 10, 100)
+    idxs = rand(1:prod(size(_X)), 100)
+    _X[idxs] .= NaN
+    X = copy(_X)
+    T = fit(nansafe(Sigmoid), X, dims=3)
+    Y = normalize(X, T)
+    Z = copy(_X)
+    for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
+        x = @view Z[i, :]
+        x .= 1.0./(1 .+ exp.(.-(x.-mean(filter(!isnan, x)))./(std(filter(!isnan, x)))))
+    end
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, Z[:])
+    @test filter!(!isnan, denormalize(Y, T)[:]) ≈ filter!(!isnan, X[:])
+    @test_nowarn normalize!(X, T)
+    @test filter!(!isnan, X[:]) == filter!(!isnan, Y[:])
+    @test_nowarn denormalize!(Y, T)
+    @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, _X[:])
+end
+
+
 @testset "ND normalization" begin
     Nmax = 5
     for _ = 1:10
