@@ -10,10 +10,8 @@ export  fit,
         nansafe,
         ZScore,
         RobustZScore,
-        NaNZScore,
         Sigmoid,
         RobustSigmoid,
-        NaNSigmoid,
         MinMax
 
 abstract type AbstractNormalization end
@@ -58,12 +56,9 @@ _robustNorm.([:RobustZScore,  :RobustSigmoid,],
 
 # * NaN-safe versions
 _nansafe(p) = x -> p(filter(!isnan, x))
-_nanNorm(N::Symbol, name::Symbol) = eval(:(@_Normalization $name _nansafe.(($N)().𝑝) ($N)().𝑓 ($N)().𝑓⁻¹))
-_nanNorm.(  [:ZScore,     :Sigmoid,    :RobustZScore,     :RobustSigmoid,],
-            [:NaNZScore,  :NaNSigmoid, :NaNRobustZScore,  :NaNRobustSigmoid,])
-# nansafe!(T::AbstractNormalization) = (T.𝑝=_nansafe.(T.𝑝); ())
-# nansafe(T::AbstractNormalization) = (N = deepcopy(T); nansafe!(N); N)
-# nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = dims |> 𝒯 |> nansafe
+nansafe!(T::AbstractNormalization) = (T.𝑝=_nansafe.(T.𝑝); ())
+nansafe(T::AbstractNormalization) = (N = deepcopy(T); nansafe!(N); N)
+nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = dims |> 𝒯 |> nansafe
 
 
 function fit!(T::AbstractNormalization, X::AbstractArray)
