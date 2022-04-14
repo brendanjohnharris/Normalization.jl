@@ -27,8 +27,8 @@ end
 macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
     :(mutable struct $(esc(name)) <: AbstractNormalization
         dims
-        p::Union{Nothing, NTuple{2, AbstractArray}}
-        𝑝::NTuple{2, Function}
+        p::Union{Nothing, NTuple{length($𝑝), AbstractArray}}
+        𝑝::NTuple{length($𝑝), Function}
         𝑓::Function
         𝑓⁻¹::Function
      end;
@@ -47,15 +47,21 @@ end
                                         =# (y, 𝜇, 𝜎) -> .-𝜎.*log.(1.0./y .- 1) .+ 𝜇
 @_Normalization MinMax (minimum, maximum)  (x, l, u) -> (x.-l)./(u-l) #=
                                         =# (y, l, u) -> (u-l).*y .+ l
+@_Normalization Center (mean,)             (x, 𝜇) -> x .- 𝜇     (y, 𝜇) -> y .+ 𝜇
+@_Normalization RobustCenter (median,)     Centre().𝑓   Centre().𝑓⁻¹
 
-_ZScore(name::Symbol, 𝑝) = eval(:(@_Normalization $name $𝑝 ZScore().𝑓 ZScore().𝑓⁻¹))
-_Sigmoid(name::Symbol, 𝑝) = eval(:(@_Normalization $name $𝑝 Sigmoid().𝑓 Sigmoid().𝑓⁻¹))
+common_norms = [:ZScore, :Sigmoid,]
 
-# * Robust versions
+# * Robust versions of typical 2-parameter normalizations
 _iqr = x -> (quantile(x[:], 0.75) - quantile(x[:], 0.25))/1.35 # ? Divide by 1.35 so that std(x) ≈ _iqr(x) when x contains normally distributed values
-_robustNorm(name::Symbol, N::Symbol) = eval(:(@_Normalization $name (median, _iqr) ($N)().𝑓 ($N)().𝑓⁻¹))
-_robustNorm.([:RobustZScore,  :RobustSigmoid,],
-             [:ZScore,        :Sigmoid,])
+_robustNorm(N::Symbol; name="Robust"*string(N)|>Symbol) = eval(:(@_Normalization $name (median, _iqr) ($N)().𝑓 ($N)().𝑓⁻¹))
+_robustNorm.(common_norms)
+
+# * Mixed versions of typical 2-parameter normalizations
+mixedcenter(x) = (_iqr(x) == 0) ? mean(x) : median(x)
+mixedscale(x) = (𝜎 = _iqr(x); 𝜎 == 0 ? std(x) : 𝜎)
+_mixedNorm(N::Symbol; name="Mixed"*string(N)|>Symbol) = eval(:(@_Normalization $name (mixedcenter, mixedscale) ($N)().𝑓 ($N)().𝑓⁻¹))
+_mixedNorm.(common_norms)
 
 # * NaN-safe versions
 _nansafe(p) = x -> p(filter(!isnan, x))
