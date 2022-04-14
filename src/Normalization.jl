@@ -1,6 +1,8 @@
 module Normalization
 
 using Statistics
+import LinearAlgebra:   normalize,
+                        normalize!
 
 export  fit,
         normalize!,
@@ -53,7 +55,7 @@ _Sigmoid(name::Symbol, 𝑝) = eval(:(@_Normalization $name $𝑝 Sigmoid().𝑓
 _iqr = x -> (quantile(x[:], 0.75) - quantile(x[:], 0.25))/1.35 # ? Divide by 1.35 so that std(x) ≈ _iqr(x) when x contains normally distributed values
 _robustNorm(name::Symbol, N::Symbol) = eval(:(@_Normalization $name (median, _iqr) ($N)().𝑓 ($N)().𝑓⁻¹))
 _robustNorm.([:RobustZScore,  :RobustSigmoid,],
-             [:ZScore,     :Sigmoid,])
+             [:ZScore,        :Sigmoid,])
 
 # * NaN-safe versions
 _nansafe(p) = x -> p(filter(!isnan, x))
@@ -75,7 +77,7 @@ function normalize!(X::AbstractArray, T::AbstractNormalization)
     mapdims!(T.𝑓, X, T.p...; T.dims)
 end
 normalize!(X::AbstractArray, 𝒯::Type{<:AbstractNormalization}; dims=nothing) = normalize!(X, fit(𝒯, X; dims))
-normalize(X::AbstractArray, args...; kwargs...) = (Y=copy(X); normalize!(Y, args...; kwargs...); Y)
+normalize(X::AbstractArray, T::Union{AbstractNormalization, Type{<:AbstractNormalization}}; kwargs...) = (Y=copy(X); normalize!(Y, T; kwargs...); Y)
 
 function denormalize!(X::AbstractArray, T::AbstractNormalization)
     isnothing(T.p) && error("Cannot denormalize with an unfit normalization")
