@@ -50,9 +50,8 @@ end
 @_Normalization Center (mean,)             (x, 𝜇) -> x .- 𝜇     (y, 𝜇) -> y .+ 𝜇
 @_Normalization RobustCenter (median,)     Centre().𝑓   Centre().𝑓⁻¹
 
-common_norms = [:ZScore, :Sigmoid,]
-
 # * Robust versions of typical 2-parameter normalizations
+common_norms = [:ZScore, :Sigmoid,]
 _iqr = x -> (quantile(x[:], 0.75) - quantile(x[:], 0.25))/1.35 # ? Divide by 1.35 so that std(x) ≈ _iqr(x) when x contains normally distributed values
 _robustNorm(N::Symbol; name="Robust"*string(N)|>Symbol) = eval(:(@_Normalization $name (median, _iqr) ($N)().𝑓 ($N)().𝑓⁻¹))
 _robustNorm.(common_norms)
@@ -95,35 +94,28 @@ denormalize(X::AbstractArray, args...) = (Y=copy(X); denormalize!(Y, args...); Y
 Map the function `f` over the `dims` of all of the arguments. `f` should accept the same number of arguments as there are variables in `x...`. The first element of `x` is the considered as the reference array, and all other arguments must have sizes consistent with the reference array, or equal to 1.
 """
 function mapdims!(f, x...; dims)
-    totaldims = 1:ndims(x[1])
-    isnothing(dims) && (dims = totaldims)
-    overdims = dims isa Vector ? dims : [dims...]
-    @assert overdims isa Vector{Int}
-    underdims = setdiff(totaldims, overdims)
-    @assert all(all(size.(x[2:end], i) .== 1) for i ∈ overdims)
-    @assert all(all(size(x[1], i) .== size.(x, i)) for i ∈ underdims)
-    if sort([dims...]) == totaldims
+    n = ndims(x[1])
+    isnothing(dims) && (dims = 1:n)
+    dims = sort([dims...])
+    @assert max(dims...) <= n
+    @assert unique(dims) == dims
+    if length(dims) == n # Don't use the custom map
         return (x[1] .= f.(x...))
     end
-    _mapdims!(x, f, underdims, CartesianIndices(size(x[1])[underdims]))
+    negdims = Base._negdims(n, dims)
+    @assert all(all(size.(x[2:end], i) .== 1) for i ∈ dims)
+    @assert all(all(size(x[1], i) .== size.(x, i)) for i ∈ negdims)
+    idxs = Base.compute_itspace(x[1], (negdims...,)|>Val)
+    _mapdims!(x, f, negdims, idxs)
 end
 
-function _mapdims!(x, f, dims, underidxs)
+function _mapdims!(x, f, dims, idxs)
     f!(x...) = (x[1] .= f(x...))
-    st = sortperm([dims...])
-    dims = dims[st] .- (0:length(dims)-1)
-    Threads.@threads for idxs ∈ underidxs
-        f!(_selectslice(dims, Tuple(idxs)[st]).(x)...)
+    dims = dims .- (0:length(dims)-1)
+    Threads.@threads for i ∈ idxs
+        selectslice = x -> view(x, i...)
+        f!(selectslice.(x)...)
     end
-end
-
-_selectdim(a, b) = x -> selectdim(x, a, b)
-_selectslice(dims, idxs) = ∘(reverse([_selectdim(dim, idxs[i]) for (i, dim) ∈ enumerate(dims)])...)
-function selectslice(x, dims, idxs)
-    st = sortperm([dims...])
-    dims = dims[st] .- (0:length(dims)-1)
-    idxs = Tuple(idxs)[st]
-    _selectslice(dims, idxs)(x)
 end
 
 end

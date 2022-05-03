@@ -291,7 +291,7 @@ end
         sz = rand(2:ds, ds)
         _X = rand(sz...)
         Nnorm = rand(1:Nmax÷2)
-        normdims = rand(1:ds, Nnorm)
+        normdims = unique(rand(1:ds, Nnorm))
         notnormdims = setdiff(1:ndims(_X), normdims)
         X = copy(_X)
         T = fit(ZScore, X, dims=normdims)
