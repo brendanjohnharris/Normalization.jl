@@ -1,6 +1,7 @@
 module Normalization
 
 using Statistics
+using JuliennedArrays
 import LinearAlgebra:   normalize,
                         normalize!
 
@@ -72,7 +73,13 @@ nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = dims |> 𝒯 |> nan
 function fit!(T::AbstractNormalization, X::AbstractArray; dims=())
     T(dims)
     dims = isnothing(T.dims) ? (1:ndims(X)) : T.dims
-    T.p = mapslices.(T.𝑝, (X,); dims)
+    psz = size(X) |> collect
+    psz[[dims...]] .= 1
+    pidxs = copy(psz) |> Vector{Union{Int64, Colon}}
+    pidxs[pidxs .> 1] .= Colon()
+    pis = 1:length(T.𝑝)
+    T.p = ([Array{eltype(X)}(undef, psz...) for _ ∈ pis]...,)
+    [view(T.p[i], pidxs...) .= T.𝑝[i].(Slices(X, dims...)) for i ∈ pis]
 end
 fit(T::AbstractNormalization, X::AbstractArray; kw...)=(T=deepcopy(T); fit!(T, X; kw...); T)
 fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = (T = 𝒯(dims); fit!(T, X); T)
@@ -99,19 +106,12 @@ function mapdims!(f, x...; dims)
     dims = sort([dims...])
     @assert max(dims...) <= n
     @assert unique(dims) == dims
-    if length(dims) == n # Don't use the custom map
-        return (x[1] .= f.(x...))
-    end
+    length(dims) == n && return (x[1] .= f.(x...)) # Shortcut for global normalisation
     negdims = Base._negdims(n, dims)
     @assert all(all(size.(x[2:end], i) .== 1) for i ∈ dims)
     @assert all(all(size(x[1], i) .== size.(x, i)) for i ∈ negdims)
     idxs = Base.compute_itspace(x[1], (negdims...,)|>Val)
-    _mapdims!(x, f, negdims, idxs)
-end
-
-function _mapdims!(x, f, dims, idxs)
     f!(x...) = (x[1] .= f(x...))
-    dims = dims .- (0:length(dims)-1)
     Threads.@threads for i ∈ idxs
         selectslice = x -> view(x, i...)
         f!(selectslice.(x)...)

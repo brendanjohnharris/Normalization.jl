@@ -4,6 +4,23 @@ using Normalization
 using Statistics
 using Test
 
+@testset "1D normalization" begin
+    # * 1D array
+    _X = rand(100)
+    X = copy(_X)
+    T = fit(ZScore, X)
+    Y = normalize(X, T)
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test length(T.p[1]) == 1 == length(T.p[2])
+    @test Y ≈ (X.-mean(X))./std(X)
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
+end
+
 @testset "2D normalization" begin # Adapted from https://github.com/JuliaStats/StatsBase.jl/blob/e8ab26500d9a34ef358b2d3cf619ae41c71785fc/test/transformations.jl
 
     #* 2D array
