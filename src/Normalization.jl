@@ -6,6 +6,7 @@ import LinearAlgebra:   normalize,
                         normalize!
 
 export  fit,
+        fit!,
         normalize!,
         normalize,
         denormalize!,
@@ -42,13 +43,13 @@ macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
 end
 
 # * Common normalizations
-@_Normalization ZScore (mean, std)         (x, 𝜇, 𝜎) -> (x .- 𝜇)./𝜎  #=
-                                        =# (y, 𝜇, 𝜎) -> y.*𝜎 .+ 𝜇
-@_Normalization Sigmoid (mean, std)        (x, 𝜇, 𝜎) -> 1.0./(1 .+ exp.(.-(x.-𝜇)./𝜎)) #=
-                                        =# (y, 𝜇, 𝜎) -> .-𝜎.*log.(1.0./y .- 1) .+ 𝜇
-@_Normalization MinMax (minimum, maximum)  (x, l, u) -> (x.-l)./(u-l) #=
-                                        =# (y, l, u) -> (u-l).*y .+ l
-@_Normalization Center (mean,)             (x, 𝜇) -> x .- 𝜇     (y, 𝜇) -> y .+ 𝜇
+@_Normalization ZScore (mean, std)         (x, 𝜇, 𝜎) -> x .= (x .- 𝜇)./𝜎  #=
+                                        =# (y, 𝜇, 𝜎) -> y .= y.*𝜎 .+ 𝜇
+@_Normalization Sigmoid (mean, std)        (x, 𝜇, 𝜎)->x.=1.0./(1 .+exp.(.-(x.-𝜇)./𝜎)) #=
+                                        =# (y, 𝜇, 𝜎) -> y .= .-𝜎.*log.(1.0./y .- 1) .+ 𝜇
+@_Normalization MinMax (minimum, maximum)  (x, l, u) -> x .= (x.-l)./(u-l) #=
+                                        =# (y, l, u) -> y .= (u-l).*y .+ l
+@_Normalization Center (mean,)             (x, 𝜇) -> x .= x .- 𝜇     (y, 𝜇) -> y .= y .+ 𝜇
 @_Normalization RobustCenter (median,)     Centre().𝑓   Centre().𝑓⁻¹
 
 # * Robust versions of typical 2-parameter normalizations
@@ -69,17 +70,13 @@ nansafe!(T::AbstractNormalization) = (T.𝑝=_nansafe.(T.𝑝); ())
 nansafe(T::AbstractNormalization) = (N = deepcopy(T); nansafe!(N); N)
 nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = dims |> 𝒯 |> nansafe
 
-
+Base.reshape(x::Number, dims...) = reshape([x], dims...)
 function fit!(T::AbstractNormalization, X::AbstractArray; dims=())
     T(dims)
     dims = isnothing(T.dims) ? (1:ndims(X)) : T.dims
     psz = size(X) |> collect
     psz[[dims...]] .= 1
-    pidxs = copy(psz) |> Vector{Union{Int64, Colon}}
-    pidxs[pidxs .> 1] .= Colon()
-    pis = 1:length(T.𝑝)
-    T.p = ([Array{eltype(X)}(undef, psz...) for _ ∈ pis]...,)
-    [view(T.p[i], pidxs...) .= T.𝑝[i].(Slices(X, dims...)) for i ∈ pis]
+    T.p = reshape.(map.(T.𝑝, (Slices(X, dims...),)), psz...)
 end
 fit(T::AbstractNormalization, X::AbstractArray; kw...)=(T=deepcopy(T); fit!(T, X; kw...); T)
 fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = (T = 𝒯(dims); fit!(T, X); T)
@@ -106,15 +103,14 @@ function mapdims!(f, x...; dims)
     dims = sort([dims...])
     @assert max(dims...) <= n
     @assert unique(dims) == dims
-    length(dims) == n && return (x[1] .= f.(x...)) # Shortcut for global normalisation
+    length(dims) == n && return f(x...) # Shortcut for global normalisation
     negdims = Base._negdims(n, dims)
     @assert all(all(size.(x[2:end], i) .== 1) for i ∈ dims)
     @assert all(all(size(x[1], i) .== size.(x, i)) for i ∈ negdims)
     idxs = Base.compute_itspace(x[1], (negdims...,)|>Val)
-    f!(x...) = (x[1] .= f(x...))
-    Threads.@threads for i ∈ idxs
+    Threads.@threads for i ∈ idxs # map(f!, Slices.(x, dims...)...)
         selectslice = x -> view(x, i...)
-        f!(selectslice.(x)...)
+        f(selectslice.(x)...)
     end
 end
 
