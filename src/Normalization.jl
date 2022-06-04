@@ -85,8 +85,9 @@ function normalize!(X::AbstractArray, T::AbstractNormalization)
     isnothing(T.p) && fit!(T, X)
     mapdims!(T.𝑓, X, T.p...; T.dims)
 end
-normalize!(X::AbstractArray, 𝒯::Type{<:AbstractNormalization}; dims=nothing) = normalize!(X, fit(𝒯, X; dims))
-normalize(X::AbstractArray, T::Union{AbstractNormalization, Type{<:AbstractNormalization}}; kwargs...) = (Y=copy(X); normalize!(Y, T; kwargs...); Y)
+NormUnion = Union{AbstractNormalization, Type{<:AbstractNormalization}}
+normalize!(X::AbstractArray, 𝒯::NormUnion; dims=nothing) = normalize!(X, fit(𝒯, X; dims))
+normalize(X::AbstractArray, T::NormUnion; kwargs...) = (Y=copy(X); normalize!(Y, T; kwargs...); Y)
 
 function denormalize!(X::AbstractArray, T::AbstractNormalization)
     isnothing(T.p) && error("Cannot denormalize with an unfit normalization")
@@ -95,7 +96,9 @@ end
 denormalize(X::AbstractArray, args...) = (Y=copy(X); denormalize!(Y, args...); Y)
 
 """
-Map the function `f` over the `dims` of all of the arguments. `f` should accept the same number of arguments as there are variables in `x...`. The first element of `x` is the considered as the reference array, and all other arguments must have sizes consistent with the reference array, or equal to 1.
+Map the function `f` over the `dims` of all of the arguments.
+`f` should accept the same number of arguments as there are variables in `x...`.
+The first element of `x` is the considered as the reference array, and all other arguments must have sizes consistent with the reference array, or equal to 1.
 """
 function mapdims!(f, x...; dims)
     n = ndims(x[1])
