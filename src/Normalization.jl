@@ -76,7 +76,7 @@ function fit!(T::AbstractNormalization, X::AbstractArray; dims=())
     dims = isnothing(T.dims) ? (1:ndims(X)) : T.dims
     psz = size(X) |> collect
     psz[[dims...]] .= 1
-    T.p = reshape.(map.(T.𝑝, (Slices(X, dims...),)), psz...)
+    T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
 end
 fit(T::AbstractNormalization, X::AbstractArray; kw...)=(T=deepcopy(T); fit!(T, X; kw...); T)
 fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = (T = 𝒯(dims); fit!(T, X); T)
