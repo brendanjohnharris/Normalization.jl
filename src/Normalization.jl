@@ -12,19 +12,21 @@ export  fit,
         denormalize!,
         denormalize,
         nansafe,
+        @_Normalization,
         ZScore,
         RobustZScore,
+        MixedSigmoid,
         Sigmoid,
         RobustSigmoid,
+        MixedSigmoid,
         MinMax
 
 abstract type AbstractNormalization end
-(𝒯::Type{<:AbstractNormalization})(dims) = 𝒯(;dims)
 function (𝒯::Type{<:AbstractNormalization})(dims, p)
     isnothing(p) || (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
     𝒯(;dims, p)
 end
-(T::AbstractNormalization)(dims) = dims == () || (T.dims = dims)
+(T::AbstractNormalization)(;dims) = dims == () || (T.dims = dims)
 
 macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
     :(mutable struct $(esc(name)) <: AbstractNormalization
@@ -68,18 +70,20 @@ _mixedNorm.(common_norms)
 _nansafe(p) = x -> p(filter(!isnan, x))
 nansafe!(T::AbstractNormalization) = (T.𝑝=_nansafe.(T.𝑝); ())
 nansafe(T::AbstractNormalization) = (N = deepcopy(T); nansafe!(N); N)
-nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = dims |> 𝒯 |> nansafe
+nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = 𝒯(; dims) |> nansafe
 
 Base.reshape(x::Number, dims...) = reshape([x], dims...)
 function fit!(T::AbstractNormalization, X::AbstractArray; dims=())
-    T(dims)
+    T(;dims)
     dims = isnothing(T.dims) ? (1:ndims(X)) : T.dims
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
 end
 fit(T::AbstractNormalization, X::AbstractArray; kw...)=(T=deepcopy(T); fit!(T, X; kw...); T)
-fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = (T = 𝒯(dims); fit!(T, X); T)
+fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = (T = 𝒯(; dims); fit!(T, X); T)
+
+(𝒯::Type{<:AbstractNormalization})(X; dims=nothing) = fit(𝒯, X; dims)
 
 function normalize!(X::AbstractArray, T::AbstractNormalization)
     isnothing(T.p) && fit!(T, X)
@@ -88,6 +92,8 @@ end
 NormUnion = Union{AbstractNormalization, Type{<:AbstractNormalization}}
 normalize!(X::AbstractArray, 𝒯::NormUnion; dims=nothing) = normalize!(X, fit(𝒯, X; dims))
 normalize(X::AbstractArray, T::NormUnion; kwargs...) = (Y=copy(X); normalize!(Y, T; kwargs...); Y)
+
+(T::AbstractNormalization)(X) = normalize(X, T)
 
 function denormalize!(X::AbstractArray, T::AbstractNormalization)
     isnothing(T.p) && error("Cannot denormalize with an unfit normalization")
