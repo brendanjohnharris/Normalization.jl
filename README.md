@@ -48,6 +48,7 @@ Any of these normalizations will work in place of `ZScore` in the examples above
 | `ZScore` | $(x - \mu)/\sigma$ | Subtract the mean and scale by the standard deviation (aka standardisation) |
 | `Sigmoid` | $(1 + \exp(-\frac{x-\mu}{\sigma}))^{-1}$ | Map to the interval $[-1, 1]$ by applying a sigmoid transformation |
 | `MinMax` | $(x-\inf{x})/(\sup{x}-\inf{x})$ | Scale to the unit interval |
+| `Center` | $x - \mu$ | Subtract the mean |
 
 
 ### Robust normalizations
