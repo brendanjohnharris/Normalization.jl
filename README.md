@@ -53,7 +53,7 @@ Any of these normalizations will work in place of `ZScore` in the examples above
 
 ### Robust normalizations
 This package also defines robust versions of any normalization methods that have $\mu$ (the mean) and $\sigma$ (the standard deviation) parameters. 
-`Robust` including `RobustZScore` and `RobustSigmoid`, use the `median` and `iqr/1.35` rather than the `mean` and `std` for a normalization that is less sensitive to outliers.
+`Robust` normalizations, including `RobustZScore` and `RobustSigmoid`, use the `median` and `iqr/1.35` rather than the `mean` and `std` for a normalization that is less sensitive to outliers.
 There are also `Mixed` methods, such as `MixedZScore` and `MixedSigmoid`, that default to the `Robust` versions but use the regular parameters (`mean` and `std`) if the `iqr` is 0.
 
 ### NaN-safe normalizations
