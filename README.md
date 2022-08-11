@@ -10,7 +10,7 @@ It also provides a bunch of normalization methods, such as the z-score, sigmoid,
 
 Each normalization method is a subtype of `AbstractNormalization`. Instances of a normalization, including any parameters (such as the mean of a dataset) are stored in a variable of the `AbstractNormalization` type.
 For example, to normalize a 2D array using the `ZScore` normalization method (or any other `<: AbstractNormalization`) over all dimensions:
-```
+```julia
 X = rand(100, 100)
 N = ZScore(X) # A normalization fit to X, NOT the normalized array
 N = ZScore()(X) # An alternative to the line above
@@ -19,7 +19,7 @@ Z = N(rand(100, 100)) # Apply a normalization with parameters fit to X on a new 
 ```
 
 There is also an alternative, preferred, syntax:
-```
+```julia
 using Statistics
 N = fit(ZScore, X)
 Y = normalize(X, N)
@@ -27,13 +27,13 @@ normalize!(X, N) # In place, writing over X
 ```
 
 A normalization can also be reversed:
-```
+```julia
 _X = denormalize(X, N) # Apply the inverse normalization
 denormalize!(X, N) # Or do the inverse in place
 ```
 
 Both syntaxes allow you to specify the dimensions to normalize over. For example, to normalize each 2D slice (i.e. iterating over the 3rd dimension) of a 3D array:
-```
+```julia
 X = rand(100, 100, 10)
 N = fit(ZScore, X; dims=[1, 2])
 normalize!(X, N) # Each [1, 2] slice is normalized independently
@@ -59,7 +59,7 @@ There are also `Mixed` methods, such as `MixedZScore` and `MixedSigmoid`, that d
 ### NaN-safe normalizations
 
 If the input array contains any `NaN` values, the normalizations given above will fit with `NaN` parameters and return `NaN` arrays. To circumvent this, any normalization can be made '`NaN`-safe', meaning it ignores `NaN` values in the input array. Using the `ZScore` example:
-```
+```julia
 N = nansafe(ZScore)
 fit!(N, X)
 Y = N(X)
@@ -68,7 +68,7 @@ Y = N(X)
 ### New normalizations
 
 Finally, there is also a macro to define your own normalization (honestly you could just make the `struct` directly). For example, the `ZScore` is defined as:
-```
+```julia
 @_Normalization ZScore (mean, std)  (x, 𝜇, 𝜎) -> x .= (x .- 𝜇)./𝜎  #=
                                  =# (y, 𝜇, 𝜎) -> y .= y.*𝜎 .+ 𝜇
 ```
