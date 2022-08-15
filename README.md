@@ -72,4 +72,4 @@ Finally, there is also a macro to define your own normalization (honestly you co
 @_Normalization ZScore (mean, std)  (x, 𝜇, 𝜎) -> x .= (x .- 𝜇)./𝜎  #=
                                  =# (y, 𝜇, 𝜎) -> y .= y.*𝜎 .+ 𝜇
 ```
-Here, the first argument is a name for the normalization, the second is a tuple of parameter functions, the third is vectorised, in-place function of an array `x` and any parameters, and the fourth is a function for the inverse transformation.
+Here, the first argument is a name for the normalization, the second is a tuple of parameter functions, the third is a vectorised, in-place function of an array `x` and any parameters, and the fourth is a function for the inverse transformation.
