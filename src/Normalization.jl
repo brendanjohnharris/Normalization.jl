@@ -26,7 +26,7 @@ function (𝒯::Type{<:AbstractNormalization})(dims, p)
     isnothing(p) || (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
     𝒯(;dims, p)
 end
-(T::AbstractNormalization)(;dims) = dims == () || (T.dims = dims)
+(T::AbstractNormalization)(;dims) = dims == () || (T.dims = length(dims) < 2 ? dims : sort(dims))
 
 macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
     :(mutable struct $(esc(name)) <: AbstractNormalization
@@ -40,7 +40,7 @@ macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
                          p = nothing,
                          𝑝 = $𝑝,
                          𝑓 = $𝑓,
-                         𝑓⁻¹ = $𝑓⁻¹) = $(esc(name))(dims, p, 𝑝, 𝑓, 𝑓⁻¹)
+                         𝑓⁻¹ = $𝑓⁻¹) = $(esc(name))(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
      )
 end
 
