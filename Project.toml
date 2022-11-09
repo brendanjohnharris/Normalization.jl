@@ -1,7 +1,7 @@
 name = "Normalization"
 uuid = "be38d6a3-8366-4a42-ad57-222272b5bbe7"
 authors = ["brendanjohnharris <brendanjohnharris@gmail.com>"]
-version = "0.3.0"
+version = "0.3.1"
 
 [deps]
 JuliennedArrays = "5cadff95-7770-533d-a838-a1bf817ee6e0"
@@ -10,4 +10,4 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 JuliennedArrays = "0.3, 0.4"
-julia = "1.6 - 1.8"
+julia = "1.6"
