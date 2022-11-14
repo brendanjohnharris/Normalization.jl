@@ -4,6 +4,7 @@ using Statistics
 using JuliennedArrays
 import LinearAlgebra:   normalize,
                         normalize!
+import StatsAPI: fit
 
 export  fit,
         fit!,
