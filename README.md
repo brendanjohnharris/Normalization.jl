@@ -49,6 +49,7 @@ Any of these normalizations will work in place of `ZScore` in the examples above
 | `Sigmoid` | $(1 + \exp(-\frac{x-\mu}{\sigma}))^{-1}$ | Map to the interval $(0, 1)$ by applying a sigmoid transformation |
 | `MinMax` | $(x-\inf{x})/(\sup{x}-\inf{x})$ | Scale to the unit interval |
 | `Center` | $x - \mu$ | Subtract the mean |
+| `UnitEnergy` | $x/\sum x^2$ | Scale to have unit energy |
 
 
 ### Robust normalizations

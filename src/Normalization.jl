@@ -13,6 +13,7 @@ export  fit,
         denormalize!,
         denormalize,
         nansafe,
+        AbstractNormalization,
         @_Normalization,
         ZScore,
         RobustZScore,
@@ -20,7 +21,10 @@ export  fit,
         Sigmoid,
         RobustSigmoid,
         MixedSigmoid,
-        MinMax
+        MinMax,
+        Center,
+        RobustCenter,
+        UnitEnergy
 
 abstract type AbstractNormalization end
 function (𝒯::Type{<:AbstractNormalization})(dims, p)
@@ -53,7 +57,10 @@ end
 @_Normalization MinMax (minimum, maximum)  (x, l, u) -> x .= (x.-l)./(u-l) #=
                                         =# (y, l, u) -> y .= (u-l).*y .+ l
 @_Normalization Center (mean,)             (x, 𝜇) -> x .= x .- 𝜇     (y, 𝜇) -> y .= y .+ 𝜇
-@_Normalization RobustCenter (median,)     Centre().𝑓   Centre().𝑓⁻¹
+@_Normalization RobustCenter (median,)     Center().𝑓   Center().𝑓⁻¹
+@_Normalization UnitEnergy (x->sum(x.^2),) #=
+                                        =# (x, 𝐸) -> x .= x./sqrt.(𝐸) #=
+                                        =# (y, 𝐸) -> y .= y.*sqrt.(𝐸)
 
 # * Robust versions of typical 2-parameter normalizations
 common_norms = [:ZScore, :Sigmoid,]
