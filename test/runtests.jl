@@ -61,6 +61,25 @@ end
     @test Y ≈ _X
 end
 
+normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy]
+for N in normalizations
+    @testset "$N 2D" begin
+        #* 2D array
+        _X = rand(10, 5)
+        X = copy(_X)
+
+        T = fit(N ,X; dims=1)
+        Y = normalize(X, T)
+        @test !isnothing(T.p)
+        @test denormalize(Y, T) ≈ X
+        @test_nowarn normalize!(X, T)
+        @test X == Y
+        @test_nowarn denormalize!(Y, T)
+        @test Y ≈ _X
+    end
+end
+
+
 @testset "3D normalization" begin
     _X = randn(10, 10, 100)
     X = copy(_X)
