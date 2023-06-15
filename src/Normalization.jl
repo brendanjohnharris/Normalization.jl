@@ -37,7 +37,7 @@ end
 macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
     :(mutable struct $(esc(name)){T} <: AbstractNormalization{T}
         dims
-        p::Union{NTuple{length($𝑝), AbstractArray{T}}}
+        p::NTuple{length($𝑝), AbstractArray{T}}
         𝑝::NTuple{length($𝑝), Function}
         𝑓::Function
         𝑓⁻¹::Function
