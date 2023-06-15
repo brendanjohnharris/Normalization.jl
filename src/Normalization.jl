@@ -5,6 +5,7 @@ using JuliennedArrays
 import LinearAlgebra:   normalize,
                         normalize!
 import StatsAPI: fit
+using Accessors
 
 export  fit,
         fit!,
@@ -26,7 +27,7 @@ export  fit,
         RobustCenter,
         UnitEnergy
 
-abstract type AbstractNormalization end
+abstract type AbstractNormalization{T} end
 function (𝒯::Type{<:AbstractNormalization})(dims, p)
     isnothing(p) || (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
     𝒯(;dims, p)
@@ -34,18 +35,19 @@ end
 (T::AbstractNormalization)(;dims) = dims == () || (T.dims = length(dims) < 2 ? dims : sort(dims))
 
 macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
-    :(mutable struct $(esc(name)) <: AbstractNormalization
+    :(mutable struct $(esc(name)){T} <: AbstractNormalization{T}
         dims
-        p::Union{Nothing, NTuple{length($𝑝), AbstractArray}}
+        p::Union{NTuple{length($𝑝), AbstractArray{T}}}
         𝑝::NTuple{length($𝑝), Function}
         𝑓::Function
         𝑓⁻¹::Function
      end;
-     ($(esc(name)))(; dims = nothing,
-                         p = nothing,
+     ($(esc(name))){T}(; dims = nothing,
+                         p = ntuple(_->Vector{T}(), length($𝑝)),
                          𝑝 = $𝑝,
                          𝑓 = $𝑓,
-                         𝑓⁻¹ = $𝑓⁻¹) = $(esc(name))(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹)
+                         𝑓⁻¹ = $𝑓⁻¹) where T = $(esc(name))(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹);
+     ($(esc(name)))(; kwargs...) = ($(esc(name))){Nothing}(; kwargs...);
      )
 end
 
@@ -81,16 +83,28 @@ nansafe(T::AbstractNormalization) = (N = deepcopy(T); nansafe!(N); N)
 nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = 𝒯(; dims) |> nansafe
 
 Base.reshape(x::Number, dims...) = reshape([x], dims...)
-function fit!(T::AbstractNormalization, X::AbstractArray; dims=())
-    T(;dims)
-    dims = isnothing(T.dims) ? (1:ndims(X)) : T.dims
+Base.eltype(::AbstractNormalization{T}) where {T} = T
+Base.eltype(::Type{<:AbstractNormalization{T}}) where {T} = T
+
+function fit!(T::AbstractNormalization, X::AbstractArray; dims=nothing)
+    𝒳 = eltype(X)
+    𝒯 = eltype(T)
+    @assert 𝒳 == 𝒯 "$𝒯 type does not match data type ($𝒳)"
+    dims = isnothing(dims) ? (1:ndims(X)) : dims
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
+    nothing
 end
-fit(T::AbstractNormalization, X::AbstractArray; kw...)=(T=deepcopy(T); fit!(T, X; kw...); T)
-fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = (T = 𝒯(; dims); fit!(T, X); T)
+function fit(T::AbstractNormalization{Nothing}, X::AbstractArray; dims=nothing)
+    dims = isnothing(dims) ? (1:ndims(X)) : dims
+    psz = size(X) |> collect
+    psz[[dims...]] .= 1
+    @set T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
+end
 
+fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = fit(𝒯(), X; dims)
+# fit(T::AbstractNormalization, X::AbstractArray; kw...) = fit(N, X; kw...)
 (𝒯::Type{<:AbstractNormalization})(X; dims=nothing) = fit(𝒯, X; dims)
 
 function normalize!(X::AbstractArray, T::AbstractNormalization)

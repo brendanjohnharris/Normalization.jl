@@ -144,6 +144,25 @@ end
     @test Y ≈ _X
 end
 
+@testset "Nansafe" begin
+    _X = randn(1000)
+    idxs = rand(1:prod(size(_X)), 100)
+    _X[idxs] .= NaN
+    X = copy(_X)
+    T = fit(nansafe(ZScore), X)
+    Y = normalize(X, T)
+    Z = copy(_X)
+    Z = (Z.-mean(filter(!isnan, Z)))./std(filter(!isnan, Z))
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, Z[:])
+    @test filter!(!isnan, denormalize(Y, T)[:]) ≈ filter!(!isnan, X[:])
+    @test_nowarn normalize!(X, T)
+    @test filter!(!isnan, X[:]) == filter!(!isnan, Y[:])
+    @test_nowarn denormalize!(Y, T)
+    @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, _X[:])
+end
+
 
 @testset "NaNZScore" begin
     _X = randn(10, 10, 100)
