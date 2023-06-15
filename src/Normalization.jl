@@ -120,7 +120,7 @@ normalize(X::AbstractArray, T::NormUnion; kwargs...) = (Y=copy(X); normalize!(Y,
 (T::AbstractNormalization)(X) = normalize(X, T)
 
 function denormalize!(X::AbstractArray, T::AbstractNormalization)
-    isnothing(T.p) && error("Cannot denormalize with an unfit normalization")
+    any(isempty.(T.p)) && error("Cannot denormalize with an unfit normalization")
     mapdims!(T.𝑓⁻¹, X, T.p...; T.dims)
 end
 denormalize(X::AbstractArray, args...) = (Y=copy(X); denormalize!(Y, args...); Y)

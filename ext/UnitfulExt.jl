@@ -14,5 +14,9 @@ function denormalize(Y::AbstractArray, T::AbstractNormalization{<:Quantity}; kwa
     X*(unit∘eltype)(T)
 end
 
+function denormalize(Y::AbstractArray{<:Quantity}, T::AbstractNormalization{<:Quantity}; kwargs...)
+    @error "Denormalization of unitful arrays currently not supported"
+end
+
 
 end # module
