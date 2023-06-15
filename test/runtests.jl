@@ -2,6 +2,7 @@ import StatsBase as SB
 using BenchmarkTools
 using Normalization
 using Statistics
+using Unitful
 using Test
 
 @testset "1D normalization" begin
@@ -19,6 +20,7 @@ using Test
     @test X == Y
     @test_nowarn denormalize!(Y, T)
     @test Y ≈ _X
+    @test eltype(Y) == eltype(_X) == eltype(T)
 end
 
 normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy]
@@ -234,6 +236,20 @@ end
         @test Y ≈ _X
     end
 end
+
+
+@testset "Unitful Normalization compat" begin
+    _X = rand(100)*u"V"
+    X = copy(_X)
+    T = fit(ZScore, X)
+    Y = normalize(X, T)
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test length(T.p[1]) == 1 == length(T.p[2])
+    @test Y ≈ (X.-mean(X))./std(X)
+    @test eltype(X) == eltype(_X) == eltype(T)
+end
+
 
 @testset "StatsBase comparison" begin
     X = rand(1000, 50)
