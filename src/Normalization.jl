@@ -91,6 +91,7 @@ function fit!(T::AbstractNormalization, X::AbstractArray; dims=nothing)
     𝒯 = eltype(T)
     @assert 𝒳 == 𝒯 "$𝒯 type does not match data type ($𝒳)"
     dims = isnothing(dims) ? (1:ndims(X)) : dims
+    length(dims) > 1 && sort!(dims)
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
@@ -98,6 +99,7 @@ function fit!(T::AbstractNormalization, X::AbstractArray; dims=nothing)
 end
 function fit(T::AbstractNormalization{Nothing}, X::AbstractArray; dims=nothing)
     dims = isnothing(dims) ? (1:ndims(X)) : dims
+    length(dims) > 1 && sort!(dims)
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     @set T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
