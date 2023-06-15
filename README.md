@@ -62,7 +62,7 @@ There are also `Mixed` methods, such as `MixedZScore` and `MixedSigmoid`, that d
 If the input array contains any `NaN` values, the normalizations given above will fit with `NaN` parameters and return `NaN` arrays. To circumvent this, any normalization can be made '`NaN`-safe', meaning it ignores `NaN` values in the input array. Using the `ZScore` example:
 ```julia
 N = nansafe(ZScore)
-fit!(N, X)
+N = fit(N, X)
 Y = N(X)
 ```
 
