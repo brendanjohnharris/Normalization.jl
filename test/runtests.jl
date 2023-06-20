@@ -3,6 +3,8 @@ using BenchmarkTools
 using Normalization
 using Statistics
 using Unitful
+using DimensionalData
+using SparseArrays
 using Test
 
 @testset "1D normalization" begin
@@ -251,12 +253,58 @@ end
 end
 
 
+@testset "DimensionalData compat" begin
+    #* 2D array
+    _X = rand(10, 5)
+    _X = DimArray(_X, (Ti(1:size(_X, 1)), Y(1:size(_X, 2))))
+    X = copy(_X)
+
+    # * ZScore a 2D array over the first dim.
+    T = fit(ZScore, X, dims=1)
+    Z = normalize(X, T)
+    N = ZScore(X; dims=1) # Alternate syntax
+    @test N(X) == Z
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test length(T.p[1]) == length(T.p[2]) == size(X, 2)
+    @test Z ≈ (X.-mean(X, dims=1))./std(X, dims=1)
+    @test denormalize(Z, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Z
+    @test_nowarn denormalize!(Z, T)
+    @test Z ≈ _X
+end
+
+# @testset "SparseArrays compat" begin
+#     #* 2D array
+#     _X = sprand(100000, 50, 1e-4)
+#     _X = DimArray(_X, (Ti(1:size(_X, 1)), Y(1:size(_X, 2))));
+#     X = deepcopy(_X);
+
+#     # * ZScore a 2D array over the first dim.
+#     T = fit(ZScore, X, dims=1)
+#     Z = normalize(X, T)
+#     N = ZScore(X; dims=1) # Alternate syntax
+#     @test N(X) == Z
+#     @test !isnothing(T.p)
+#     @test length(T.p) == 2
+#     @test length(T.p[1]) == length(T.p[2]) == size(X, 2)
+#     @test Z ≈ (X.-mean(X, dims=1))./std(X, dims=1)
+#     @test denormalize(Z, T) ≈ X
+#     @test_nowarn normalize!(X, T)
+#     @test X == Z
+#     @test_nowarn denormalize!(Z, T)
+#     @test Z ≈ _X
+# end
+
+
 @testset "StatsBase comparison" begin
     X = rand(1000, 50)
     Y = normalize(X, ZScore; dims=1)
     Z = SB.standardize(SB.ZScoreTransform, X; dims=1)
     @test Y ≈ Z
 end
+
 
 println("\nNormalization.jl")
 display(@benchmark normalize(rand(1000, 10000), ZScore; dims=1))

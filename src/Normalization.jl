@@ -94,6 +94,7 @@ function fit!(T::AbstractNormalization, X::AbstractArray; dims=nothing)
     length(dims) > 1 && sort!(dims)
     psz = size(X) |> collect
     psz[[dims...]] .= 1
+    T.dims = dims
     T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
     nothing
 end
@@ -102,7 +103,8 @@ function fit(T::AbstractNormalization{Nothing}, X::AbstractArray; dims=nothing)
     length(dims) > 1 && sort!(dims)
     psz = size(X) |> collect
     psz[[dims...]] .= 1
-    @set T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
+    T = @set T.dims = dims
+    T = @set T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
 end
 
 fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = fit(𝒯(), X; dims)
@@ -125,6 +127,14 @@ function denormalize!(X::AbstractArray, T::AbstractNormalization)
 end
 denormalize(X::AbstractArray, args...) = (Y=copy(X); denormalize!(Y, args...); Y)
 
+
+function _mapdims!(f, idxs, x...)
+    Threads.@threads for i ∈ idxs
+        selectslice = x -> view(x, i...)
+        f(selectslice.(x)...)
+    end
+end
+
 """
 Map the function `f` over the `dims` of all of the arguments.
 `f` should accept the same number of arguments as there are variables in `x...`.
@@ -141,10 +151,9 @@ function mapdims!(f, x...; dims)
     @assert all(all(size.(x[2:end], i) .== 1) for i ∈ dims)
     @assert all(all(size(x[1], i) .== size.(x, i)) for i ∈ negdims)
     idxs = Base.compute_itspace(x[1], (negdims...,)|>Val)
-    Threads.@threads for i ∈ idxs # map(f!, Slices.(x, dims...)...)
-        selectslice = x -> view(x, i...)
-        f(selectslice.(x)...)
-    end
+    # axs = Iterators.product(ntuple(Base.DimSelector{(negdims...)}(x[1]), ndims(x[1]))...)
+    # idxs = vec(permutedims(collect(axs), (negdims..., dims...)))
+    _mapdims!(f, idxs, x...)
 end
 
 end
