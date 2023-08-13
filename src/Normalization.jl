@@ -107,7 +107,7 @@ function fit(T::AbstractNormalization{Nothing}, X::AbstractArray; dims=nothing)
     T = @set T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
 end
 
-fit(𝒯::Type{<:AbstractNormalization}, X::AbstractArray; dims=nothing) = fit(𝒯(), X; dims)
+fit(𝒯::Type{<:AbstractNormalization}, X; dims=nothing) = fit(𝒯(), X; dims)
 # fit(T::AbstractNormalization, X::AbstractArray; kw...) = fit(N, X; kw...)
 (𝒯::Type{<:AbstractNormalization})(X; dims=nothing) = fit(𝒯, X; dims)
 
@@ -116,8 +116,8 @@ function normalize!(X::AbstractArray, T::AbstractNormalization)
     mapdims!(T.𝑓, X, T.p...; T.dims)
 end
 NormUnion = Union{AbstractNormalization, Type{<:AbstractNormalization}}
-normalize!(X::AbstractArray, 𝒯::NormUnion; dims=nothing) = normalize!(X, fit(𝒯, X; dims))
-normalize(X::AbstractArray, T::NormUnion; kwargs...) = (Y=copy(X); normalize!(Y, T; kwargs...); Y)
+normalize!(X, 𝒯::NormUnion; dims=nothing) = normalize!(X, fit(𝒯, X; dims))
+normalize(X, T::NormUnion; kwargs...) = (Y=copy(X); normalize!(Y, T; kwargs...); Y)
 
 (T::AbstractNormalization)(X) = normalize(X, T)
 
@@ -125,7 +125,7 @@ function denormalize!(X::AbstractArray, T::AbstractNormalization)
     any(isempty.(T.p)) && error("Cannot denormalize with an unfit normalization")
     mapdims!(T.𝑓⁻¹, X, T.p...; T.dims)
 end
-denormalize(X::AbstractArray, args...) = (Y=copy(X); denormalize!(Y, args...); Y)
+denormalize(X, args...) = (Y=copy(X); denormalize!(Y, args...); Y)
 
 
 function _mapdims!(f, idxs, x...)
