@@ -1,3 +1,4 @@
+#! format: off
 module Normalization
 
 using Statistics
