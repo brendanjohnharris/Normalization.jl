@@ -139,7 +139,7 @@ end
 # ? Stolen from old Base
 function compute_itspace(A, ::Val{dims}) where {dims}
     negdims = filter(i->!(i in dims), 1:ndims(A))
-    axs = Iterators.product(ntuple(DimSelector{dims}(A), ndims(A))...)
+    axs = Iterators.product(ntuple(Base.DimSelector{dims}(A), ndims(A))...)
     vec(permutedims(collect(axs), (dims..., negdims...)))
 end
 
