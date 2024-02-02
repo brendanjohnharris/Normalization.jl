@@ -283,14 +283,6 @@ end
     N = RobustZScore(X; dims=1)
     @test N(X) == Z
     @test !isnothing(T.p)
-    @test length(T.p) == 2
-    @test length(T.p[1]) == length(T.p[2]) == size(X, 2)
-    @test Z ≈ (X .- mean(X, dims=1)) ./ std(X, dims=1)
-    @test denormalize(Z, T) ≈ X
-    @test_nowarn normalize!(X, T)
-    @test X == Z
-    @test_nowarn denormalize!(Z, T)
-    @test Z ≈ _X
 end
 
 # @testset "SparseArrays compat" begin

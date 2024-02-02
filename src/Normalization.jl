@@ -137,9 +137,14 @@ function _mapdims!(f, idxs, x...)
 end
 
 # ? Stolen from old Base
+struct DimSelector{dims, T}
+    A::T
+end
+DimSelector{dims}(x::T) where {dims, T} = DimSelector{dims, T}(x)
+(ds::DimSelector{dims, T})(i) where {dims, T} = i in dims ? axes(ds.A, i) : (:,)
 function compute_itspace(A, ::Val{dims}) where {dims}
     negdims = filter(i->!(i in dims), 1:ndims(A))
-    axs = Iterators.product(ntuple(Base.DimSelector{dims}(A), ndims(A))...)
+    axs = Iterators.product(ntuple(DimSelector{dims}(A), ndims(A))...)
     vec(permutedims(collect(axs), (dims..., negdims...)))
 end
 
