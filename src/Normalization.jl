@@ -136,6 +136,13 @@ function _mapdims!(f, idxs, x...)
     end
 end
 
+# ? Stolen from old Base
+function compute_itspace(A, ::Val{dims}) where {dims}
+    negdims = _negdims(ndims(A), dims)
+    axs = Iterators.product(ntuple(DimSelector{dims}(A), ndims(A))...)
+    vec(permutedims(collect(axs), (dims..., negdims...)))
+end
+
 """
 Map the function `f` over the `dims` of all of the arguments.
 `f` should accept the same number of arguments as there are variables in `x...`.
