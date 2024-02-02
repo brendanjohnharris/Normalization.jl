@@ -148,7 +148,7 @@ function mapdims!(f, x...; dims)
     @assert max(dims...) <= n
     @assert unique(dims) == dims
     length(dims) == n && return f(x...) # Shortcut for global normalisation
-    negdims = Base._negdims(n, dims)
+    negdims = filter(i->!(i in dims), 1:n)
     @assert all(all(size.(x[2:end], i) .== 1) for i ∈ dims)
     @assert all(all(size(x[1], i) .== size.(x, i)) for i ∈ negdims)
     idxs = Base.compute_itspace(x[1], (negdims...,)|>Val)
