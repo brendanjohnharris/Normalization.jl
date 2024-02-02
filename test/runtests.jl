@@ -274,6 +274,23 @@ end
     @test X == Z
     @test_nowarn denormalize!(Z, T)
     @test Z ≈ _X
+
+    # * ZScore a 3D array over the first dim.
+    _X = DimArray(randn(5, 6, 7), (Dim{:a}(1:5), Dim{:b}(1:6), Dim{:c}(1:7)))
+    X = copy(_X)
+    T = fit(RobustZScore, X, dims=1)
+    Z = normalize(X, T)
+    N = RobustZScore(X; dims=1)
+    @test N(X) == Z
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test length(T.p[1]) == length(T.p[2]) == size(X, 2)
+    @test Z ≈ (X .- mean(X, dims=1)) ./ std(X, dims=1)
+    @test denormalize(Z, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Z
+    @test_nowarn denormalize!(Z, T)
+    @test Z ≈ _X
 end
 
 # @testset "SparseArrays compat" begin
