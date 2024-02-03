@@ -67,7 +67,9 @@ end
 
 # * Robust versions of typical 2-parameter normalizations
 common_norms = [:ZScore, :Sigmoid,]
-_iqr = x -> (quantile(x[:], 0.75) - quantile(x[:], 0.25))/1.35 # ? Divide by 1.35 so that std(x) ≈ _iqr(x) when x contains normally distributed values
+function _iqr(x::AbstractVector{T})::T where {T}
+    eltype(x).((quantile(x[:], 0.75) - quantile(x[:], 0.25))/1.35) # ? Divide by 1.35 so that std(x) ≈ _iqr(x) when x contains normally distributed values
+end
 _robustNorm(N::Symbol; name="Robust"*string(N)|>Symbol) = eval(:(@_Normalization $name (median, _iqr) ($N)().𝑓 ($N)().𝑓⁻¹))
 _robustNorm.(common_norms)
 

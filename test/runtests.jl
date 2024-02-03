@@ -39,6 +39,17 @@ for N in normalizations
         @test X == Y
         @test_nowarn denormalize!(Y, T)
         @test Y ≈ _X
+
+        _X = Float32.(_X)
+        X = copy(_X)
+        T = fit(N, X)
+        Y = normalize(X, T)
+        @test !isnothing(T.p)
+        @test denormalize(Y, T) ≈ X
+        @test_nowarn normalize!(X, T)
+        @test X == Y
+        @test_nowarn denormalize!(Y, T)
+        @test Y ≈ _X
     end
 end
 
