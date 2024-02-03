@@ -8,12 +8,40 @@ using DimensionalData
 using SparseArrays
 using Test
 
+@testset "Constructor" begin
+    p = ([0], [1])
+    dims = 1
+    ZScore(dims, p)
+
+    p = (randn(3, 3), randn(3, 3))
+    dims = [1, 2]
+    ZScore(dims, p)
+end
+
+
 @testset "1D normalization" begin
     # * 1D array
     _X = rand(100)
     X = copy(_X)
     T = fit(ZScore, X)
     Y = normalize(X, T)
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test length(T.p[1]) == 1 == length(T.p[2])
+    @test Y ≈ (X .- mean(X)) ./ std(X)
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
+    @test eltype(Y) == eltype(_X) == eltype(T)
+
+    _X = rand(100)
+    X = copy(_X)
+    _T = deepcopy(T)
+    fit!(T, X)
+    Y = normalize(X, T)
+    @test _T != T
     @test !isnothing(T.p)
     @test length(T.p) == 2
     @test length(T.p[1]) == 1 == length(T.p[2])
