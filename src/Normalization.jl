@@ -26,7 +26,9 @@ export  fit,
         MinMax,
         Center,
         RobustCenter,
-        UnitEnergy
+        UnitEnergy,
+        OutlierSuppress,
+        RobustOutlierSuppress
 
 abstract type AbstractNormalization{T} end
 function (𝒯::Type{<:AbstractNormalization})(dims, p)
@@ -64,9 +66,12 @@ end
 @_Normalization UnitEnergy (x->sum(x.^2),) #=
                                         =# (x, 𝐸) -> x .= x./sqrt.(𝐸) #=
                                         =# (y, 𝐸) -> y .= y.*sqrt.(𝐸)
+@_Normalization OutlierSuppress (mean, std) #=
+                                        =# (x, 𝜇, 𝜎) -> (x[x .- 𝜇 .> 5.0.*𝜎] .= 𝜇 .+ 5.0.*𝜎, x[𝜇 .- x .> 5.0.*𝜎] .= 𝜇 .- 5.0.*𝜎) #=
+                                        =# (y, 𝜇, 𝜎) -> identity # No denormalization here
 
 # * Robust versions of typical 2-parameter normalizations
-common_norms = [:ZScore, :Sigmoid,]
+common_norms = [:ZScore, :Sigmoid, :OutlierSuppress]
 function _iqr(x::AbstractArray{T})::T where {T}
     eltype(x).((quantile(x[:], 0.75) - quantile(x[:], 0.25))/1.35) # ? Divide by 1.35 so that std(x) ≈ _iqr(x) when x contains normally distributed values
 end
@@ -84,6 +89,13 @@ _nansafe(p) = x -> p(filter(!isnan, x))
 nansafe!(T::AbstractNormalization) = (T.𝑝=_nansafe.(T.𝑝); ())
 nansafe(T::AbstractNormalization) = (N = deepcopy(T); nansafe!(N); N)
 nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = 𝒯(; dims) |> nansafe
+
+function nansafe(f::Function; dims = nothing)
+    function g(x)
+        isnothing(dims) && (dims = 1:ndims(x))
+        mapslices(y -> f(filter(!isnan, y)), x; dims = dims)
+    end
+end
 
 Base.reshape(x::Number, dims...) = reshape([x], dims...)
 Base.eltype(::AbstractNormalization{T}) where {T} = T
