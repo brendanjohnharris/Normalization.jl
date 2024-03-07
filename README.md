@@ -45,15 +45,16 @@ all(std(X; dims=[1, 2]) .≈ 1) # true
 Any of these normalizations will work in place of `ZScore` in the examples above:
 | Normalization | Formula | Description |
 |--|--| -- |
-| `ZScore` | $(x - \mu)/\sigma$ | Subtract the mean and scale by the standard deviation (aka standardisation) |
+| `ZScore` | $(x - \mu)/\sigma$ | Subtract the mean and scale by the standard deviation (aka standardization) |
 | `Sigmoid` | $(1 + \exp(-\frac{x-\mu}{\sigma}))^{-1}$ | Map to the interval $(0, 1)$ by applying a sigmoid transformation |
 | `MinMax` | $(x-\inf{x})/(\sup{x}-\inf{x})$ | Scale to the unit interval |
 | `Center` | $x - \mu$ | Subtract the mean |
 | `UnitEnergy` | $x/\sum x^2$ | Scale to have unit energy |
+| `HalfZScore` | $\sqrt{1-2/\pi} \cdot (x - \inf{x})/\sigma$ | Normalization to the standard half-normal distribution |
 
 
 ### Robust normalizations
-This package also defines robust versions of any normalization methods that have $\mu$ (the mean) and $\sigma$ (the standard deviation) parameters. 
+This package also defines robust versions of any normalization methods that have $\mu$ (the mean) and $\sigma$ (the standard deviation) parameters.
 `Robust` normalizations, including `RobustZScore` and `RobustSigmoid`, use the `median` and `iqr/1.35` rather than the `mean` and `std` for a normalization that is less sensitive to outliers.
 There are also `Mixed` methods, such as `MixedZScore` and `MixedSigmoid`, that default to the `Robust` versions but use the regular parameters (`mean` and `std`) if the `iqr` is 0.
 

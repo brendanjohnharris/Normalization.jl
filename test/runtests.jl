@@ -54,7 +54,7 @@ end
     @test eltype(Y) == eltype(_X) == eltype(T)
 end
 
-normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy]
+normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy, HalfZScore]
 for N in normalizations
     @testset "$N" begin
         _X = rand(100)
@@ -105,7 +105,7 @@ end
     @test Y ≈ _X
 end
 
-normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy]
+normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy, HalfZScore]
 for N in normalizations
     @testset "$N 2D" begin
         #* 2D array

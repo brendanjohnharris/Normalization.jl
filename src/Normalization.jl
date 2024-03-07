@@ -28,7 +28,8 @@ export  fit,
         RobustCenter,
         UnitEnergy,
         OutlierSuppress,
-        RobustOutlierSuppress
+        RobustOutlierSuppress,
+        HalfZScore
 
 abstract type AbstractNormalization{T} end
 function (𝒯::Type{<:AbstractNormalization})(dims, p)
@@ -54,8 +55,12 @@ macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
      )
 end
 
+halfstd(x, args...; kwargs...) = std(x, args...; kwargs...)./convert(eltype(x), sqrt(1-(2/π)))
+
 # * Common normalizations
 @_Normalization ZScore (mean, std)         (x, 𝜇, 𝜎) -> x .= (x .- 𝜇)./𝜎  #=
+                                        =# (y, 𝜇, 𝜎) -> y .= y.*𝜎 .+ 𝜇
+@_Normalization HalfZScore (minimum, halfstd) (x, 𝜇, 𝜎) -> x .= (x .- 𝜇)./𝜎  #=
                                         =# (y, 𝜇, 𝜎) -> y .= y.*𝜎 .+ 𝜇
 @_Normalization Sigmoid (mean, std)        (x, 𝜇, 𝜎)->x.=1.0./(1 .+exp.(.-(x.-𝜇)./𝜎)) #=
                                         =# (y, 𝜇, 𝜎) -> y .= .-𝜎.*log.(1.0./y .- 1) .+ 𝜇
@@ -106,7 +111,7 @@ function fit!(T::AbstractNormalization, X::AbstractArray; dims=nothing)
     𝒯 = eltype(T)
     @assert 𝒳 == 𝒯 "$𝒯 type does not match data type ($𝒳)"
     dims = isnothing(dims) ? (1:ndims(X)) : dims
-    length(dims) > 1 && sort!(dims)
+    dims = length(dims) > 1 ? sort!(dims) : dims
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T.dims = dims
@@ -115,7 +120,7 @@ function fit!(T::AbstractNormalization, X::AbstractArray; dims=nothing)
 end
 function fit(T::AbstractNormalization{Nothing}, X::AbstractArray; dims=nothing)
     dims = isnothing(dims) ? (1:ndims(X)) : dims
-    length(dims) > 1 && sort!(dims)
+    dims = length(dims) > 1 ? sort!(dims) : dims
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T = @set T.dims = dims

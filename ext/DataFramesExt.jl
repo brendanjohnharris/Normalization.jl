@@ -14,7 +14,7 @@ function fit!(T::AbstractNormalization, Y::AbstractDataFrame; dims=nothing)
     𝒯 = eltype(T)
     @assert 𝒳 == 𝒯 "$𝒯 type does not match data type ($𝒳)"
     dims = isnothing(dims) ? (1:ndims(X)) : dims
-    length(dims) > 1 && sort!(dims)
+    dims = length(dims) > 1 ? sort!(dims) : dims
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T.dims = dims
@@ -24,7 +24,7 @@ end
 function fit(T::AbstractNormalization{Nothing}, Y::AbstractDataFrame; dims=nothing)
     X = DataFrames.Tables.matrix(Y)
     dims = isnothing(dims) ? (1:ndims(X)) : dims
-    length(dims) > 1 && sort!(dims)
+    dims = length(dims) > 1 ? sort!(dims) : dims
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T = @set T.dims = dims
