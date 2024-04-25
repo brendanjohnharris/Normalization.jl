@@ -36,7 +36,7 @@ function (𝒯::Type{<:AbstractNormalization})(dims, p)
     isnothing(p) || (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
     𝒯(;dims, p)
 end
-(T::AbstractNormalization)(;dims) = dims == () || (T.dims = length(dims) < 2 ? dims : sort(dims))
+(T::AbstractNormalization)(;dims) = dims == () || (T.dims = length(dims) < 2 ? dims : collect(dims))
 
 macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
     :(mutable struct $(esc(name)){T} <: AbstractNormalization{T}
@@ -50,7 +50,7 @@ macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
                          p = ntuple(_->Vector{T}(), length($𝑝)),
                          𝑝 = $𝑝,
                          𝑓 = $𝑓,
-                         𝑓⁻¹ = $𝑓⁻¹) where T = $(esc(name))(((isnothing(dims) || length(dims) < 2) ? dims : sort(dims)), p, 𝑝, 𝑓, 𝑓⁻¹);
+                         𝑓⁻¹ = $𝑓⁻¹) where T = $(esc(name))(((isnothing(dims) || length(dims) < 2) ? dims : collect(dims)), p, 𝑝, 𝑓, 𝑓⁻¹);
      ($(esc(name)))(; kwargs...) = ($(esc(name))){Nothing}(; kwargs...);
      )
 end
@@ -111,7 +111,7 @@ function fit!(T::AbstractNormalization, X::AbstractArray; dims=nothing)
     𝒯 = eltype(T)
     @assert 𝒳 == 𝒯 "$𝒯 type does not match data type ($𝒳)"
     dims = isnothing(dims) ? (1:ndims(X)) : dims
-    dims = length(dims) > 1 ? sort!(dims) : dims
+    dims = length(dims) > 1 ? collect(dims) : dims
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T.dims = dims
@@ -120,7 +120,7 @@ function fit!(T::AbstractNormalization, X::AbstractArray; dims=nothing)
 end
 function fit(T::AbstractNormalization{Nothing}, X::AbstractArray; dims=nothing)
     dims = isnothing(dims) ? (1:ndims(X)) : dims
-    dims = length(dims) > 1 ? sort!(dims) : dims
+    dims = length(dims) > 1 ? collect(dims) : dims
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T = @set T.dims = dims
