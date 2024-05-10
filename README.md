@@ -52,7 +52,7 @@ Any of these normalizations will work in place of `ZScore` in the examples above
 | `Center` | $x - \mu$ | Subtract the mean |
 | `UnitEnergy` | $x/\sum x^2$ | Scale to have unit energy |
 | `HalfZScore` | $\sqrt{1-2/\pi} \cdot (x - \inf{x})/\sigma$ | Normalization to the standard half-normal distribution |
-| `OutlierSuppress` | $\max(\min(x, \mu + 5\sigma), \mu - 5\sigma)$ | Clip values outside of $\mu \pm \sigma$ |
+| `OutlierSuppress` | $\max(\min(x, \mu + 5\sigma), \mu - 5\sigma)$ | Clip values outside of $\mu \pm 5\sigma$ |
 
 
 ### Robust normalizations
