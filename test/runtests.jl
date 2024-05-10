@@ -25,8 +25,8 @@ end
     mapdims!(f, X; dims=1)
     @test X == _X .^ 2
 
-    b(X) = mapdims!(f, X; dims=1)
-    @benchmark b(X) setup = X=deepcopy(_X)
+    # b(X) = mapdims!(f, X; dims=1)
+    # @benchmark $b(X) setup = X = deepcopy($_X)
 
     X = deepcopy(_X)
     Y = 1.0 ./ _X[:, 1, 1]
@@ -45,7 +45,6 @@ end
     p = (randn(3, 3), randn(3, 3))
     dims = [1, 2]
     N = @test_nowarn ZScore(dims, p)
-
     @test N isa AbstractNormalization
 end
 
@@ -177,34 +176,19 @@ end
 
     # * Multiple dims
     X = copy(_X)
-    T = fit(ZScore, X, dims=[2, 3])
-    Y = normalize(X, T)
-    Z = copy(_X)
-    for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
-        x = @view Z[i, :]
-        x .= (x .- mean(x)) ./ std(x)
-    end
-    @test !isnothing(T.p)
-    @test length(T.p) == 2
-    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
-    @test Y ≈ Z
-    @test denormalize(Y, T) ≈ X
-    @test_nowarn normalize!(X, T)
-    @test X == Y
-    @test_nowarn denormalize!(Y, T)
-    @test Y ≈ _X
-
-    X = copy(_X)
+    T1 = fit(ZScore, X, dims=[2, 3])
     T = fit(ZScore, X, dims=(2, 3))
+    @test T1.dims == T.dims == [2, 3]
+    @test T1.p == T.p
     Y = normalize(X, T)
     Z = copy(_X)
-    for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
-        x = @view Z[i, :]
+    for i ∈ axes(Z, 1)
+        x = @view Z[i, :, :]
         x .= (x .- mean(x)) ./ std(x)
     end
     @test !isnothing(T.p)
     @test length(T.p) == 2
-    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test size(T.p[1])[1] == size(T.p[2])[1] == size(X)[1]
     @test Y ≈ Z
     @test denormalize(Y, T) ≈ X
     @test_nowarn normalize!(X, T)
@@ -334,7 +318,7 @@ end
         normdims = unique(rand(1:ds, Nnorm))
         notnormdims = setdiff(1:ndims(_X), normdims)
         X = copy(_X)
-        T = fit(ZScore, X, dims=normdims)
+        T = fit(ZScore, X, dims=normdims[randperm(Nnorm)]) # Randomize dims order
         Y = normalize(X, T)
         @test !isnothing(T.p)
         @test length(T.p) == 2
@@ -423,13 +407,14 @@ end
 end
 
 
-println("\nNormalization.jl")
-display(@benchmark normalize(rand(1000, 10000), ZScore; dims=1))
+println("\nNormalization.jl (in-place)")
+display(@benchmark normalize!(X, ZScore; dims=1) setup = X = rand(1000, 10000))
+println("\nNormalization.jl (out-of-place)")
+display(@benchmark normalize(X, ZScore; dims=1) setup = X = rand(1000, 10000))
 println("\nStatsBase.jl")
-display(@benchmark SB.standardize(SB.ZScoreTransform, rand(1000, 10000); dims=1))
+display(@benchmark SB.standardize(SB.ZScoreTransform, X; dims=1) setup = X = rand(1000, 10000))
 
 @testset "DataFrames ext" begin
-
     _X = DataFrame(
         :temperature_A => [18.1, 19.5, 21.1],
         :temperature_B => [16.2, 17.2, 17.5],

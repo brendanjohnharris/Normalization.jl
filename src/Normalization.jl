@@ -2,7 +2,6 @@
 module Normalization
 
 using Statistics
-using JuliennedArrays
 import LinearAlgebra:   normalize,
                         normalize!
 import StatsAPI: fit
@@ -37,7 +36,6 @@ function (𝒯::Type{<:AbstractNormalization})(dims, p)
     isnothing(p) || (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
     𝒯(;dims, p)
 end
-(T::AbstractNormalization)(;dims) = dims == () || (T.dims = length(dims) < 2 ? dims : collect(dims))
 
 macro _Normalization(name, 𝑝, 𝑓, 𝑓⁻¹)
     :(mutable struct $(esc(name)){T} <: AbstractNormalization{T}
@@ -152,25 +150,6 @@ function denormalize!(X::AbstractArray, T::AbstractNormalization)
 end
 denormalize(X, args...) = (Y=copy(X); denormalize!(Y, args...); Y)
 
-
-function _mapdims!(f, idxs, x...)
-    Threads.@threads for i ∈ idxs
-        selectslice = x -> view(x, i...)
-        f(selectslice.(x)...)
-    end
-end
-
-# ? Stolen from old Base
-struct DimSelector{dims, T}
-    A::T
-end
-DimSelector{dims}(x::T) where {dims, T} = DimSelector{dims, T}(x)
-(ds::DimSelector{dims, T})(i) where {dims, T} = i in dims ? axes(ds.A, i) : (:,)
-function compute_itspace(A, ::Val{dims}) where {dims}
-    axs = Iterators.product(ntuple(DimSelector{dims}(A), ndims(A))...)
-    vec(permutedims(collect(axs), (dims..., negdims(dims, ndims(A))...)))
-end
-
 """
 Map the function `f` over the `dims` of all of the arguments.
 `f` should accept the same number of arguments as there are variables in `x...`.
@@ -181,7 +160,6 @@ to 1 (along the remaining dims).
 function mapdims!(f, x...; dims)
     n = ndims(x[1])
     isnothing(dims) && (dims = 1:n)
-    # dims = sort([dims...])
      max(dims...) <= n || error("A chosen dimension is greater than the number of dimensions of the reference array")
     unique(dims) == [dims...] || error("Repeated dimensions")
     length(dims) == n && return f(x...) # ? Shortcut for global normalisation
@@ -191,11 +169,9 @@ function mapdims!(f, x...; dims)
     all(all(size(x[1], i) .== size.(x, i)) for i ∈ negs) || error("Inconsistent dimensions; dimensions $negs must have size $(size(x[1])[collect(negs)])")
 
     slices = eachslice.(x; dims=negs)
-    Threads.@threads for xs in zip(slices...) |> collect
-        f(xs...)
+    Threads.@threads for i in eachindex(slices[1])
+        f(getindex.(slices, i)...)
     end
-    # idxs = compute_itspace(x[1], (negdims(dims, n)...,)|>Val)
-    # _mapdims!(f, idxs, x...)
 end
 
 end
