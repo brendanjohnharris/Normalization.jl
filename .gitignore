@@ -34,3 +34,4 @@ Manifest.toml
 *.mov
 data/**
 *.code-workspace
+lcov.info

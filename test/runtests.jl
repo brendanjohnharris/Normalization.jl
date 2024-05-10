@@ -8,14 +8,45 @@ using DimensionalData
 using SparseArrays
 using Test
 
+@testset "negdims" begin
+    import Normalization.negdims
+    X = randn(100, 200, 300)
+    @test negdims(2, ndims(X)) == (1, 3)
+    @test negdims(1:2, ndims(X)) == (3,)
+    @test negdims([1], ndims(X)) == (2, 3)
+end
+
+@testset "Mapdims" begin
+    import Normalization.mapdims!
+    _X = randn(1000, 200, 300)
+    X = deepcopy(_X)
+
+    f = x -> (x .= x .^ 2)
+    mapdims!(f, X; dims=1)
+    @test X == _X .^ 2
+
+    b(X) = mapdims!(f, X; dims=1)
+    @benchmark b(X) setup = X=deepcopy(_X)
+
+    X = deepcopy(_X)
+    Y = 1.0 ./ _X[:, 1, 1]
+    f = (x, y) -> (x .= x .^ 2 .+ y .^ 2)
+    mapdims!(f, X, Y; dims=(2, 3))
+    @test X == _X .^ 2 .+ Y .^ 2
+end
+
+
 @testset "Constructor" begin
     p = ([0], [1])
     dims = 1
-    ZScore(dims, p)
+    N = @test_nowarn ZScore(dims, p)
+    @test N isa AbstractNormalization
 
     p = (randn(3, 3), randn(3, 3))
     dims = [1, 2]
-    ZScore(dims, p)
+    N = @test_nowarn ZScore(dims, p)
+
+    @test N isa AbstractNormalization
 end
 
 
@@ -128,6 +159,43 @@ end
     _X = randn(10, 10, 100)
     X = copy(_X)
     T = fit(ZScore, X, dims=3)
+    Y = normalize(X, T)
+    Z = copy(_X)
+    for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
+        x = @view Z[i, :]
+        x .= (x .- mean(x)) ./ std(x)
+    end
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test Y ≈ Z
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
+
+    # * Multiple dims
+    X = copy(_X)
+    T = fit(ZScore, X, dims=[2, 3])
+    Y = normalize(X, T)
+    Z = copy(_X)
+    for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
+        x = @view Z[i, :]
+        x .= (x .- mean(x)) ./ std(x)
+    end
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test Y ≈ Z
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
+
+    X = copy(_X)
+    T = fit(ZScore, X, dims=(2, 3))
     Y = normalize(X, T)
     Z = copy(_X)
     for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))

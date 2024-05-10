@@ -31,6 +31,7 @@ export  fit,
         RobustOutlierSuppress,
         HalfZScore
 
+
 abstract type AbstractNormalization{T} end
 function (𝒯::Type{<:AbstractNormalization})(dims, p)
     isnothing(p) || (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
@@ -106,25 +107,29 @@ Base.reshape(x::Number, dims...) = reshape([x], dims...)
 Base.eltype(::AbstractNormalization{T}) where {T} = T
 Base.eltype(::Type{<:AbstractNormalization{T}}) where {T} = T
 
+negdims(dims, n)::NTuple{N, Integer} where {N} = filter(i->!(i in dims), 1:n) |> Tuple
+
 function fit!(T::AbstractNormalization, X::AbstractArray; dims=nothing)
     𝒳 = eltype(X)
     𝒯 = eltype(T)
     @assert 𝒳 == 𝒯 "$𝒯 type does not match data type ($𝒳)"
     dims = isnothing(dims) ? (1:ndims(X)) : dims
-    dims = length(dims) > 1 ? collect(dims) : dims
+    dims = (length(dims) > 1 ? collect(dims) : dims) |> Tuple
+    _dims = negdims(dims, ndims(X)) |> Tuple
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T.dims = dims
-    T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
+    T.p = reshape.(map.(T.𝑝, (eachslice(X; dims=_dims, drop=false),)), psz...)
     nothing
 end
 function fit(T::AbstractNormalization{Nothing}, X::AbstractArray; dims=nothing)
     dims = isnothing(dims) ? (1:ndims(X)) : dims
-    dims = length(dims) > 1 ? collect(dims) : dims
+    dims = (length(dims) > 1 ? collect(dims) : dims)
+    _dims = negdims(dims, ndims(X)) |> Tuple
     psz = size(X) |> collect
     psz[[dims...]] .= 1
     T = @set T.dims = dims
-    T = @set T.p = reshape.(map.(T.𝑝, (JuliennedArrays.Slices(X, dims...),)), psz...)
+    T = @set T.p = reshape.(map.(T.𝑝, (eachslice(X; dims=_dims, drop=false),)), psz...)
 end
 
 fit(𝒯::Type{<:AbstractNormalization}, X; dims=nothing) = fit(𝒯(), X; dims)
@@ -162,30 +167,35 @@ end
 DimSelector{dims}(x::T) where {dims, T} = DimSelector{dims, T}(x)
 (ds::DimSelector{dims, T})(i) where {dims, T} = i in dims ? axes(ds.A, i) : (:,)
 function compute_itspace(A, ::Val{dims}) where {dims}
-    negdims = filter(i->!(i in dims), 1:ndims(A))
     axs = Iterators.product(ntuple(DimSelector{dims}(A), ndims(A))...)
-    vec(permutedims(collect(axs), (dims..., negdims...)))
+    vec(permutedims(collect(axs), (dims..., negdims(dims, ndims(A))...)))
 end
 
 """
 Map the function `f` over the `dims` of all of the arguments.
 `f` should accept the same number of arguments as there are variables in `x...`.
-The first element of `x` is the considered as the reference array, and all other arguments must have sizes consistent with the reference array, or equal to 1.
+The first element of `x` is the considered as the reference array, and all other arguments
+must have sizes consistent with the reference array (along the specified `dims`), or equal
+to 1 (along the remaining dims).
 """
 function mapdims!(f, x...; dims)
     n = ndims(x[1])
     isnothing(dims) && (dims = 1:n)
-    dims = sort([dims...])
-    @assert max(dims...) <= n
-    @assert unique(dims) == dims
-    length(dims) == n && return f(x...) # Shortcut for global normalisation
-    negdims = filter(i->!(i in dims), 1:n)
-    @assert all(all(size.(x[2:end], i) .== 1) for i ∈ dims)
-    @assert all(all(size(x[1], i) .== size.(x, i)) for i ∈ negdims)
-    idxs = compute_itspace(x[1], (negdims...,)|>Val)
-    # axs = Iterators.product(ntuple(Base.DimSelector{(negdims...)}(x[1]), ndims(x[1]))...)
-    # idxs = vec(permutedims(collect(axs), (negdims..., dims...)))
-    _mapdims!(f, idxs, x...)
+    # dims = sort([dims...])
+     max(dims...) <= n || error("A chosen dimension is greater than the number of dimensions of the reference array")
+    unique(dims) == [dims...] || error("Repeated dimensions")
+    length(dims) == n && return f(x...) # ? Shortcut for global normalisation
+    all(all(size.(x[2:end], i) .== 1) for i ∈ dims) || error("Inconsistent dimensions; dimensions $dims must have size 1")
+
+    negs = negdims(dims, n)
+    all(all(size(x[1], i) .== size.(x, i)) for i ∈ negs) || error("Inconsistent dimensions; dimensions $negs must have size $(size(x[1])[collect(negs)])")
+
+    slices = eachslice.(x; dims=negs)
+    Threads.@threads for xs in zip(slices...) |> collect
+        f(xs...)
+    end
+    # idxs = compute_itspace(x[1], (negdims(dims, n)...,)|>Val)
+    # _mapdims!(f, idxs, x...)
 end
 
 end
