@@ -28,7 +28,8 @@ export  fit,
         UnitEnergy,
         OutlierSuppress,
         RobustOutlierSuppress,
-        HalfZScore
+        HalfZScore,
+        RobustHalfZScore
 
 
 abstract type AbstractNormalization{T} end
@@ -75,7 +76,7 @@ halfstd(x, args...; kwargs...) = std(x, args...; kwargs...)./convert(eltype(x), 
                                         =# (y, 𝜇, 𝜎) -> identity # No denormalization here
 
 # * Robust versions of typical 2-parameter normalizations
-common_norms = [:ZScore, :Sigmoid, :OutlierSuppress]
+common_norms = [:ZScore, :Sigmoid, :OutlierSuppress, :HalfZScore]
 function _iqr(x::AbstractArray{T})::T where {T}
     eltype(x).((quantile(x[:], 0.75) - quantile(x[:], 0.25))/1.35) # ? Divide by 1.35 so that std(x) ≈ _iqr(x) when x contains normally distributed values
 end
@@ -150,6 +151,13 @@ function denormalize!(X::AbstractArray, T::AbstractNormalization)
 end
 denormalize(X, args...) = (Y=copy(X); denormalize!(Y, args...); Y)
 
+
+function _mapdims!(f, xs::Slices{<:AbstractArray}, ys)
+    Threads.@threads for i in eachindex(xs)
+        f(xs[i], getindex.(ys, i)...)
+    end
+end
+
 """
 Map the function `f` over the `dims` of all of the arguments.
 `f` should accept the same number of arguments as there are variables in `x...`.
@@ -157,21 +165,20 @@ The first element of `x` is the considered as the reference array, and all other
 must have sizes consistent with the reference array (along the specified `dims`), or equal
 to 1 (along the remaining dims).
 """
-function mapdims!(f, x...; dims)
-    n = ndims(x[1])
+function mapdims!(f, x::AbstractArray{T, n}, y...; dims) where {T, n}
     isnothing(dims) && (dims = 1:n)
      max(dims...) <= n || error("A chosen dimension is greater than the number of dimensions of the reference array")
     unique(dims) == [dims...] || error("Repeated dimensions")
-    length(dims) == n && return f(x...) # ? Shortcut for global normalisation
-    all(all(size.(x[2:end], i) .== 1) for i ∈ dims) || error("Inconsistent dimensions; dimensions $dims must have size 1")
+    length(dims) == n && return f(x, y...) # ? Shortcut for global normalisation
+    all(all(size.(y, i) .== 1) for i ∈ dims) || error("Inconsistent dimensions; dimensions $dims must have size 1")
 
     negs = negdims(dims, n)
-    all(all(size(x[1], i) .== size.(x, i)) for i ∈ negs) || error("Inconsistent dimensions; dimensions $negs must have size $(size(x[1])[collect(negs)])")
+    all(all(size(x, i) .== size.(y, i)) for i ∈ negs) || error("Inconsistent dimensions; dimensions $negs must have size $(size(x)[collect(negs)])")
 
-    slices = eachslice.(x; dims=negs)
-    Threads.@threads for i in eachindex(slices[1])
-        f(getindex.(slices, i)...)
-    end
+    xs = eachslice(x; dims=negs)
+    ys = eachslice.(y; dims=negs)
+    _mapdims!(f, xs, ys)
 end
+
 
 end

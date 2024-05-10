@@ -6,6 +6,7 @@ using Statistics
 using Unitful
 using DimensionalData
 using SparseArrays
+using Random
 using Test
 
 @testset "negdims" begin
@@ -19,15 +20,6 @@ end
 @testset "Mapdims" begin
     import Normalization.mapdims!
     _X = randn(1000, 200, 300)
-    X = deepcopy(_X)
-
-    f = x -> (x .= x .^ 2)
-    mapdims!(f, X; dims=1)
-    @test X == _X .^ 2
-
-    # b(X) = mapdims!(f, X; dims=1)
-    # @benchmark $b(X) setup = X = deepcopy($_X)
-
     X = deepcopy(_X)
     Y = 1.0 ./ _X[:, 1, 1]
     f = (x, y) -> (x .= x .^ 2 .+ y .^ 2)
@@ -84,7 +76,8 @@ end
     @test eltype(Y) == eltype(_X) == eltype(T)
 end
 
-normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy, HalfZScore]
+normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy, HalfZScore, RobustHalfZScore]
+forward_normalizations = [OutlierSuppress, RobustOutlierSuppress]
 for N in normalizations
     @testset "$N" begin
         _X = rand(100)
@@ -110,11 +103,29 @@ for N in normalizations
         @test Y ≈ _X
     end
 end
+for N in forward_normalizations
+    @testset "$N" begin
+        _X = rand(100)
+        X = copy(_X)
+        T = fit(N, X)
+        Y = normalize(X, T)
+        @test !isnothing(T.p)
+        @test_nowarn normalize!(X, T)
+        @test X == Y
+
+        _X = Float32.(_X)
+        X = copy(_X)
+        T = fit(N, X)
+        Y = normalize(X, T)
+        @test !isnothing(T.p)
+        @test_nowarn normalize!(X, T)
+        @test X == Y
+    end
+end
 
 
 
-@testset "2D normalization" begin # Adapted from https://github.com/JuliaStats/StatsBase.jl/blob/e8ab26500d9a34ef358b2d3cf619ae41c71785fc/test/transformations.jl
-
+@testset "2D normalization" begin
     #* 2D array
     _X = rand(10, 5)
     X = copy(_X)
@@ -135,7 +146,6 @@ end
     @test Y ≈ _X
 end
 
-normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy, HalfZScore]
 for N in normalizations
     @testset "$N 2D" begin
         #* 2D array
@@ -318,7 +328,7 @@ end
         normdims = unique(rand(1:ds, Nnorm))
         notnormdims = setdiff(1:ndims(_X), normdims)
         X = copy(_X)
-        T = fit(ZScore, X, dims=normdims[randperm(Nnorm)]) # Randomize dims order
+        T = fit(ZScore, X, dims=normdims[randperm(length(normdims))]) # Randomize dims order
         Y = normalize(X, T)
         @test !isnothing(T.p)
         @test length(T.p) == 2
