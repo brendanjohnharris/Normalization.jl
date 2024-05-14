@@ -356,15 +356,34 @@ end
 
 
 @testset "DimensionalData compat" begin
+    # * 1D array
+    _X = rand(100)
+    _X = DimArray(_X, (Ti(1:size(_X, 1)),))
+    X = copy(_X)
+    T = @test_nowarn fit(ZScore, X, dims=1)
+    Z = @test_nowarn normalize(X, T)
+    N = @test_nowarn ZScore(X; dims=1) # Alternate syntax
+    @test N(X) == Z
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test length(T.p[1]) == length(T.p[2]) == size(X, 2)
+    @test Z ≈ (X .- mean(X, dims=1)) ./ std(X, dims=1)
+    @test denormalize(Z, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Z
+    @test_nowarn denormalize!(Z, T)
+    @test Z ≈ _X
+
+
     #* 2D array
     _X = rand(10, 5)
     _X = DimArray(_X, (Ti(1:size(_X, 1)), Y(1:size(_X, 2))))
     X = copy(_X)
 
     # * ZScore a 2D array over the first dim.
-    T = fit(ZScore, X, dims=1)
-    Z = normalize(X, T)
-    N = ZScore(X; dims=1) # Alternate syntax
+    T = @test_nowarn fit(ZScore, X, dims=1)
+    Z = @test_nowarn normalize(X, T)
+    N = @test_nowarn ZScore(X; dims=1) # Alternate syntax
     @test N(X) == Z
     @test !isnothing(T.p)
     @test length(T.p) == 2
