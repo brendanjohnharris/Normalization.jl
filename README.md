@@ -1,5 +1,6 @@
 # Normalization.jl
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10613385.svg)](https://zenodo.org/doi/10.5281/zenodo.10613385)
 [![Build Status](https://github.com/brendanjohnharris/Normalization.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/brendanjohnharris/Normalization.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/brendanjohnharris/Normalization.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/brendanjohnharris/Normalization.jl)
 [![Downloads](https://img.shields.io/badge/dynamic/json?url=http%3A%2F%2Fjuliapkgstats.com%2Fapi%2Fv1%2Fmonthly_downloads%2FNormalization&query=total_requests&suffix=%2Fmonth&label=Downloads)](http://juliapkgstats.com/pkg/Normalization)
