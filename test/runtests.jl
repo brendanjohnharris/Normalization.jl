@@ -76,6 +76,37 @@ end
     @test eltype(Y) == eltype(_X) == eltype(T)
 end
 
+@testset "1D half z-score normalization" begin
+    # * Check this normalization is correct
+    _X = abs.(randn(100000))
+    X = copy(_X)
+    @test mean(X) ≈ 1 * sqrt(2 / pi) rtol = 1e-2
+    @test var(X) ≈ 1 - (2 / pi) rtol = 1e-2
+
+    T = fit(HalfZScore, X)
+    Y = normalize(X, T)
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test length(T.p[1]) == 1 == length(T.p[2])
+    @test Y ≈ X rtol = 1e-2
+
+    _X = _X .+ 10
+    X = copy(_X)
+    T = fit(HalfZScore, X)
+    Y = normalize(X, T)
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test length(T.p[1]) == 1 == length(T.p[2])
+    @test Y ≈ X .- 10 rtol = 1e-2
+
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
+    @test eltype(Y) == eltype(_X) == eltype(T)
+end
+
 normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy, HalfZScore, RobustHalfZScore]
 forward_normalizations = [OutlierSuppress, RobustOutlierSuppress]
 for N in normalizations
