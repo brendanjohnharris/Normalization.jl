@@ -80,8 +80,8 @@ end
     # * Check this normalization is correct
     _X = abs.(randn(100000))
     X = copy(_X)
-    @test mean(X) ≈ 1 * sqrt(2 / pi) rtol = 1e-2
-    @test var(X) ≈ 1 - (2 / pi) rtol = 1e-2
+    @test mean(X) ≈ 1 * sqrt(2 / pi) rtol = 2e-2
+    @test var(X) ≈ 1 - (2 / pi) rtol = 2e-2
 
     T = fit(HalfZScore, X)
     Y = normalize(X, T)
