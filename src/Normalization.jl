@@ -102,7 +102,7 @@ function nansafe(f::Function; dims = nothing)
     end
 end
 
-reshape(x, dims...) = Base.reshape([x], dims...)
+reshape(args...; kwargs...) = Base.reshape(args...; kwargs...)
 reshape(x::Number, dims...) = reshape([x], dims...)
 Base.eltype(::AbstractNormalization{T}) where {T} = T
 Base.eltype(::Type{<:AbstractNormalization{T}}) where {T} = T
