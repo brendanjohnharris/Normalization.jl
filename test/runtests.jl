@@ -1,15 +1,22 @@
-import StatsBase as SB
-using BenchmarkTools
-using DataFrames
-using Normalization
-using Statistics
-using Unitful
-using DimensionalData
-using SparseArrays
-using Random
 using Test
+using TestItems
+using TestItemRunner
 
-@testset "negdims" begin
+@run_package_tests
+
+@testsnippet Setup begin
+    import StatsBase as SB
+    using BenchmarkTools
+    using DataFrames
+    using Normalization
+    using Statistics
+    using Unitful
+    using DimensionalData
+    using SparseArrays
+    using Random
+end
+
+@testitem "negdims" setup = [Setup] begin
     import Normalization.negdims
     X = randn(100, 200, 300)
     @test negdims(2, ndims(X)) == (1, 3)
@@ -17,7 +24,7 @@ using Test
     @test negdims([1], ndims(X)) == (2, 3)
 end
 
-@testset "Mapdims" begin
+@testitem "Mapdims" setup = [Setup] begin
     import Normalization.mapdims!
     _X = randn(1000, 200, 300)
     X = deepcopy(_X)
@@ -27,8 +34,7 @@ end
     @test X == _X .^ 2 .+ Y .^ 2
 end
 
-
-@testset "Constructor" begin
+@testitem "Constructor" setup = [Setup] begin
     p = ([0], [1])
     dims = 1
     N = @test_nowarn ZScore(dims, p)
@@ -40,8 +46,7 @@ end
     @test N isa AbstractNormalization
 end
 
-
-@testset "1D normalization" begin
+@testitem "1D normalization" setup = [Setup] begin
     # * 1D array
     _X = rand(100)
     X = copy(_X)
@@ -76,7 +81,7 @@ end
     @test eltype(Y) == eltype(_X) == eltype(T)
 end
 
-@testset "1D half z-score normalization" begin
+@testitem "1D half z-score normalization" setup = [Setup] begin
     # * Check this normalization is correct
     _X = abs.(randn(100000))
     X = copy(_X)
@@ -110,7 +115,7 @@ end
 normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy, HalfZScore, RobustHalfZScore]
 forward_normalizations = [OutlierSuppress, RobustOutlierSuppress]
 for N in normalizations
-    @testset "$N" begin
+    @testitem "$N" setup = [Setup] begin
         _X = rand(100)
         X = copy(_X)
         T = fit(N, X)
@@ -135,7 +140,7 @@ for N in normalizations
     end
 end
 for N in forward_normalizations
-    @testset "$N" begin
+    @testitem "$N" setup = [Setup] begin
         _X = rand(100)
         X = copy(_X)
         T = fit(N, X)
@@ -154,9 +159,7 @@ for N in forward_normalizations
     end
 end
 
-
-
-@testset "2D normalization" begin
+@testitem "2D normalization" setup = [Setup] begin
     #* 2D array
     _X = rand(10, 5)
     X = copy(_X)
@@ -178,7 +181,7 @@ end
 end
 
 for N in normalizations
-    @testset "$N 2D" begin
+    @testitem "$N 2D" setup = [Setup] begin
         #* 2D array
         _X = rand(10, 5)
         X = copy(_X)
@@ -194,8 +197,7 @@ for N in normalizations
     end
 end
 
-
-@testset "3D normalization" begin
+@testitem "3D normalization" setup = [Setup] begin
     _X = randn(10, 10, 100)
     X = copy(_X)
     T = fit(ZScore, X, dims=3)
@@ -238,8 +240,7 @@ end
     @test Y ≈ _X
 end
 
-
-@testset "Sigmoid" begin
+@testitem "Sigmoid" setup = [Setup] begin
     _X = randn(10, 10, 100)
     X = copy(_X)
     T = fit(Sigmoid, X, dims=3)
@@ -260,7 +261,7 @@ end
     @test Y ≈ _X
 end
 
-@testset "RobustSigmoid" begin
+@testitem "RobustSigmoid" setup = [Setup] begin
     _X = randn(10, 10, 100)
     X = copy(_X)
     T = fit(RobustSigmoid, X, dims=3)
@@ -281,7 +282,7 @@ end
     @test Y ≈ _X
 end
 
-@testset "Nansafe" begin
+@testitem "Nansafe" setup = [Setup] begin
     _X = randn(1000)
     idxs = rand(1:prod(size(_X)), 100)
     _X[idxs] .= NaN
@@ -300,8 +301,7 @@ end
     @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, _X[:])
 end
 
-
-@testset "NaNZScore" begin
+@testitem "NaNZScore" setup = [Setup] begin
     _X = randn(10, 10, 100)
     idxs = rand(1:prod(size(_X)), 100)
     _X[idxs] .= NaN
@@ -324,8 +324,7 @@ end
     @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, _X[:])
 end
 
-
-@testset "NaNSigmoid" begin
+@testitem "NaNSigmoid" setup = [Setup] begin
     _X = randn(10, 10, 100)
     idxs = rand(1:prod(size(_X)), 100)
     _X[idxs] .= NaN
@@ -348,8 +347,7 @@ end
     @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, _X[:])
 end
 
-
-@testset "ND normalization" begin
+@testitem "ND normalization" setup = [Setup] begin
     Nmax = 5
     for _ = 1:10
         ds = rand(2:Nmax)
@@ -372,8 +370,7 @@ end
     end
 end
 
-
-@testset "Unitful Normalization compat" begin
+@testitem "Unitful Normalization compat" setup = [Setup] begin
     _X = rand(100) * u"V"
     X = copy(_X)
     T = fit(ZScore, X)
@@ -385,8 +382,7 @@ end
     @test eltype(X) == eltype(_X) == eltype(T)
 end
 
-
-@testset "DimensionalData compat" begin
+@testitem "DimensionalData compat" setup = [Setup] begin
     # * 1D array
     _X = rand(100)
     _X = DimArray(_X, (Ti(1:size(_X, 1)),))
@@ -404,7 +400,6 @@ end
     @test X == Z
     @test_nowarn denormalize!(Z, T)
     @test Z ≈ _X
-
 
     #* 2D array
     _X = rand(10, 5)
@@ -436,45 +431,23 @@ end
     @test !isnothing(T.p)
 end
 
-# @testset "SparseArrays compat" begin
-#     #* 2D array
-#     _X = sprand(100000, 50, 1e-4)
-#     _X = DimArray(_X, (Ti(1:size(_X, 1)), Y(1:size(_X, 2))));
-#     X = deepcopy(_X);
-
-#     # * ZScore a 2D array over the first dim.
-#     T = fit(ZScore, X, dims=1)
-#     Z = normalize(X, T)
-#     N = ZScore(X; dims=1) # Alternate syntax
-#     @test N(X) == Z
-#     @test !isnothing(T.p)
-#     @test length(T.p) == 2
-#     @test length(T.p[1]) == length(T.p[2]) == size(X, 2)
-#     @test Z ≈ (X.-mean(X, dims=1))./std(X, dims=1)
-#     @test denormalize(Z, T) ≈ X
-#     @test_nowarn normalize!(X, T)
-#     @test X == Z
-#     @test_nowarn denormalize!(Z, T)
-#     @test Z ≈ _X
-# end
-
-
-@testset "StatsBase comparison" begin
+@testitem "StatsBase comparison" setup = [Setup] begin
     X = rand(1000, 50)
     Y = normalize(X, ZScore; dims=1)
     Z = SB.standardize(SB.ZScoreTransform, X; dims=1)
     @test Y ≈ Z
 end
 
+@testitem "Benchmark" setup = [Setup] begin
+    println("\nNormalization.jl (in-place)")
+    display(@benchmark normalize!(X, ZScore; dims=1) setup = X = rand(1000, 10000))
+    println("\nNormalization.jl (out-of-place)")
+    display(@benchmark normalize(X, ZScore; dims=1) setup = X = rand(1000, 10000))
+    println("\nStatsBase.jl")
+    display(@benchmark SB.standardize(SB.ZScoreTransform, X; dims=1) setup = X = rand(1000, 10000))
+end
 
-println("\nNormalization.jl (in-place)")
-display(@benchmark normalize!(X, ZScore; dims=1) setup = X = rand(1000, 10000))
-println("\nNormalization.jl (out-of-place)")
-display(@benchmark normalize(X, ZScore; dims=1) setup = X = rand(1000, 10000))
-println("\nStatsBase.jl")
-display(@benchmark SB.standardize(SB.ZScoreTransform, X; dims=1) setup = X = rand(1000, 10000))
-
-@testset "DataFrames ext" begin
+@testitem "DataFrames ext" setup = [Setup] begin
     _X = DataFrame(
         :temperature_A => [18.1, 19.5, 21.1],
         :temperature_B => [16.2, 17.2, 17.5],
@@ -513,4 +486,9 @@ display(@benchmark SB.standardize(SB.ZScoreTransform, X; dims=1) setup = X = ran
     @test X ≈ Z
     @test_nowarn denormalize!(Z, T)
     @test Z ≈ _X
+end
+
+@testitem "Aqua.jl" begin
+    using Aqua
+    Aqua.test_all(Normalization)
 end
