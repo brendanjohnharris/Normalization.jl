@@ -1,12 +1,11 @@
 module UnitfulExt
 using Unitful
-using Accessors
-import Normalization: normalize, normalize!, denormalize, denormalize!, NormUnion, AbstractNormalization
+import Normalization: normalize, normalize!, denormalize, denormalize!, AbstractNormalization
 
 # Extend Normalizations.jl to unitful data
 # Note that in-place normalization is not defined for unitful arrays unless the normalization doesn't change the units.
 
-normalize(X::AbstractArray{<:Quantity}, T::NormUnion; kwargs...) = (Y = deepcopy(X) |> AbstractArray{Any}; normalize!(Y, T; kwargs...); identity.(Y))
+normalize(X::AbstractArray{<:Quantity}, T::AbstractNormalization; kwargs...) = (Y = deepcopy(X) |> AbstractArray{Any}; normalize!(Y, T; kwargs...); identity.(Y))
 
 function denormalize(Y::AbstractArray, T::AbstractNormalization{<:Quantity}; kwargs...)
     N = @set T.p = ustrip.(T.p)

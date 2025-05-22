@@ -1,10 +1,10 @@
-using Test
 using TestItems
 using TestItemRunner
 
 @run_package_tests
 
 @testsnippet Setup begin
+    using Test
     import StatsBase as SB
     using BenchmarkTools
     using DataFrames
@@ -14,6 +14,7 @@ using TestItemRunner
     using DimensionalData
     using SparseArrays
     using Random
+    import Normalization: params
 end
 
 @testitem "negdims" setup = [Setup] begin
@@ -29,54 +30,90 @@ end
     _X = randn(1000, 200, 300)
     X = deepcopy(_X)
     Y = 1.0 ./ _X[:, 1, 1]
-    f = (x, y) -> (x .= x .^ 2 .+ y .^ 2)
-    mapdims!(f, X, Y; dims=(2, 3))
+    function f!(y)
+        function _f!(x)
+            x^2 + y^2
+        end
+    end
+    mapdims!(f!, X, Y; dims=(2, 3))
     @test X == _X .^ 2 .+ Y .^ 2
 end
 
 @testitem "Constructor" setup = [Setup] begin
     p = ([0], [1])
     dims = 1
-    N = @test_nowarn ZScore(dims, p)
+    N = @inferred ZScore(dims, p)
     @test N isa AbstractNormalization
 
     p = (randn(3, 3), randn(3, 3))
     dims = [1, 2]
-    N = @test_nowarn ZScore(dims, p)
+    N = @inferred ZScore(dims, p)
     @test N isa AbstractNormalization
+end
+
+@testitem "Inverses" setup = [Setup] begin
+    using InverseFunctions
+    using Test
+    import Normalization: zscore, sigmoid, minmax, center, unitenergy
+
+    invnorms = [Center, UnitEnergy, ZScore, Sigmoid, MinMax]
+
+    invnorms = map(invnorms) do invnorm
+        ps = rand(length(Normalization.estimators(invnorm)))
+        return Normalization.forward(invnorm)(ps...)
+    end
+    InverseFunctions.test_inverse.(invnorms, randn())
 end
 
 @testitem "1D normalization" setup = [Setup] begin
     # * 1D array
     _X = rand(100)
     X = copy(_X)
-    T = fit(ZScore, X)
-    Y = normalize(X, T)
+
+    @inferred ZScore{Float64}(; p=([0], [1]))
+    @inferred ZScore(nothing, ([0], [1]))
+    @inferred fit(ZScore, X)
+    N = @inferred ZScore{Float64}()
+    @inferred normalize(X, N)
+
+    T = @inferred fit(ZScore, X)
+    Y = @inferred normalize(X, T)
     @test !isnothing(T.p)
     @test length(T.p) == 2
     @test length(T.p[1]) == 1 == length(T.p[2])
     @test Y ≈ (X .- mean(X)) ./ std(X)
-    @test denormalize(Y, T) ≈ X
-    @test_nowarn normalize!(X, T)
+    D = @inferred denormalize(Y, T)
+    @test D ≈ X
+    @test_nowarn @inferred normalize!(X, T)
     @test X == Y
-    @test_nowarn denormalize!(Y, T)
+    @test_nowarn @inferred denormalize!(Y, T)
     @test Y ≈ _X
     @test eltype(Y) == eltype(_X) == eltype(T)
+
+    T = @inferred ZScore{Float64}(; dims=2)
+    @test_throws DimensionMismatch fit!(T, X)
+
+    T = @inferred ZScore{Float64}(; dims=1)
+    @test_nowarn fit!(T, X)
+
+    T = @inferred ZScore{Float64}()
+    @test_nowarn fit!(T, X; dims=1)
+    @test Normalization.dims(T) == 1
 
     _X = rand(100)
     X = copy(_X)
     _T = deepcopy(T)
-    fit!(T, X)
-    Y = normalize(X, T)
+    @inferred fit!(T, X)
+    Y = @inferred normalize(X, T)
     @test _T != T
     @test !isnothing(T.p)
     @test length(T.p) == 2
     @test length(T.p[1]) == 1 == length(T.p[2])
     @test Y ≈ (X .- mean(X)) ./ std(X)
-    @test denormalize(Y, T) ≈ X
-    @test_nowarn normalize!(X, T)
+    @test @inferred denormalize(Y, T) ≈ X
+    @test_nowarn @inferred normalize!(X, T)
     @test X == Y
-    @test_nowarn denormalize!(Y, T)
+    @test_nowarn @inferred denormalize!(Y, T)
     @test Y ≈ _X
     @test eltype(Y) == eltype(_X) == eltype(T)
 end
@@ -112,30 +149,55 @@ end
     @test eltype(Y) == eltype(_X) == eltype(T)
 end
 
+@testitem "Outlier suppress" setup = [Setup] begin
+    # * Check this normalization is correct
+    using Statistics
+    _X = abs.(randn(10000))
+    X = copy(_X)
+    X[1:5] .= 10000
+
+    T = fit(OutlierSuppress, X)
+    Y = normalize(X, T)
+    @test !isnothing(T.p)
+    @test length(T.p) == 2
+    @test length(T.p[1]) == 1 == length(T.p[2])
+    @test all(Y[1:5] .== (std(X) * 5.0 + mean(X)))
+
+
+    T = fit(Robust{OutlierSuppress}, X)
+    Y = normalize(X, T)
+    @test Normalization.normalization(T) isa OutlierSuppress
+    @test !isnothing(params(T))
+    @test length(params(T)) == 2
+    @test length(params(T)[1]) == 1 == length(params(T)[2])
+    @test all(Y[1:5] .< X[1:5])
+    @test all(Y[1:5] .< 10)
+end
+
 normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy, HalfZScore, RobustHalfZScore]
 forward_normalizations = [OutlierSuppress, RobustOutlierSuppress]
 for N in normalizations
     @testitem "$N" setup = [Setup] begin
         _X = rand(100)
         X = copy(_X)
-        T = fit(N, X)
-        Y = normalize(X, T)
+        T = @inferred fit(N, X)
+        Y = @inferred normalize(X, T)
         @test !isnothing(T.p)
-        @test denormalize(Y, T) ≈ X
-        @test_nowarn normalize!(X, T)
+        @test @inferred denormalize(Y, T) ≈ X
+        @test_nowarn @inferred normalize!(X, T)
         @test X == Y
-        @test_nowarn denormalize!(Y, T)
+        @test_nowarn @inferred denormalize!(Y, T)
         @test Y ≈ _X
 
         _X = Float32.(_X)
         X = copy(_X)
-        T = fit(N, X)
-        Y = normalize(X, T)
+        T = @inferred fit(N, X)
+        Y = @inferred normalize(X, T)
         @test !isnothing(T.p)
-        @test denormalize(Y, T) ≈ X
-        @test_nowarn normalize!(X, T)
+        @test @inferred denormalize(Y, T) ≈ X
+        @test_nowarn @inferred normalize!(X, T)
         @test X == Y
-        @test_nowarn denormalize!(Y, T)
+        @test_nowarn @inferred denormalize!(Y, T)
         @test Y ≈ _X
     end
 end
@@ -143,18 +205,18 @@ for N in forward_normalizations
     @testitem "$N" setup = [Setup] begin
         _X = rand(100)
         X = copy(_X)
-        T = fit(N, X)
-        Y = normalize(X, T)
+        T = @inferred fit(N, X)
+        Y = @inferred normalize(X, T)
         @test !isnothing(T.p)
-        @test_nowarn normalize!(X, T)
+        @test_nowarn @inferred normalize!(X, T)
         @test X == Y
 
         _X = Float32.(_X)
         X = copy(_X)
-        T = fit(N, X)
-        Y = normalize(X, T)
+        T = @inferred fit(N, X)
+        Y = @inferred normalize(X, T)
         @test !isnothing(T.p)
-        @test_nowarn normalize!(X, T)
+        @test_nowarn @inferred normalize!(X, T)
         @test X == Y
     end
 end
@@ -165,18 +227,18 @@ end
     X = copy(_X)
 
     # * ZScore a 2D array over the first dim.
-    T = fit(ZScore, X, dims=1)
-    Y = normalize(X, T)
-    N = ZScore(X; dims=1) # Alternate syntax
+    T = @inferred fit(ZScore, X, dims=1)
+    Y = @inferred normalize(X, T)
+    N = @inferred ZScore(X; dims=1) # Alternate syntax
     @test N(X) == Y
     @test !isnothing(T.p)
     @test length(T.p) == 2
     @test length(T.p[1]) == length(T.p[2]) == size(X, 2)
     @test Y ≈ (X .- mean(X, dims=1)) ./ std(X, dims=1)
-    @test denormalize(Y, T) ≈ X
-    @test_nowarn normalize!(X, T)
+    @test @inferred denormalize(Y, T) ≈ X
+    @test_nowarn @inferred normalize!(X, T)
     @test X == Y
-    @test_nowarn denormalize!(Y, T)
+    @test_nowarn @inferred denormalize!(Y, T)
     @test Y ≈ _X
 end
 
@@ -200,8 +262,8 @@ end
 @testitem "3D normalization" setup = [Setup] begin
     _X = randn(10, 10, 100)
     X = copy(_X)
-    T = fit(ZScore, X, dims=3)
-    Y = normalize(X, T)
+    T = @inferred fit(ZScore, X, dims=3)
+    Y = @inferred normalize(X, T)
     Z = copy(_X)
     for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
         x = @view Z[i, :]
@@ -240,6 +302,29 @@ end
     @test Y ≈ _X
 end
 
+@testitem "ND normalization" setup = [Setup] begin
+    Nmax = 5
+    for _ = 1:10
+        ds = rand(2:Nmax)
+        sz = rand(2:ds, ds)
+        _X = rand(sz...)
+        Nnorm = rand(1:Nmax÷2)
+        normdims = unique(rand(1:ds, Nnorm))
+        notnormdims = setdiff(1:ndims(_X), normdims)
+        X = copy(_X)
+        T = fit(ZScore, X, dims=normdims[randperm(length(normdims))]) # Randomize dims order
+        Y = normalize(X, T)
+        @test !isnothing(T.p)
+        @test length(T.p) == 2
+        @test size(T.p[1])[notnormdims] == size(T.p[2])[notnormdims] == size(X)[notnormdims]
+        @test denormalize(Y, T) ≈ X
+        @test_nowarn normalize!(X, T)
+        @test X == Y
+        @test_nowarn denormalize!(Y, T)
+        @test Y ≈ _X
+    end
+end
+
 @testitem "Sigmoid" setup = [Setup] begin
     _X = randn(10, 10, 100)
     X = copy(_X)
@@ -264,17 +349,59 @@ end
 @testitem "RobustSigmoid" setup = [Setup] begin
     _X = randn(10, 10, 100)
     X = copy(_X)
-    T = fit(RobustSigmoid, X, dims=3)
+
+    N = @inferred Normalization.Robust(Sigmoid(X, dims=3))
+    n = @inferred ZScore{Float64}(; dims=1)
+    N = @inferred Normalization.Robust(n)
+
+    # * Preferred patterns
+    N = Normalization.Robust(Sigmoid{Float64}())
+    fit!(N, X)
+
+    N = Normalization.Robust{Sigmoid}
+    T = fit(N, X, dims=3)
     Y = normalize(X, T)
+
+    @test params(T)[1] == median(X, dims=3)
+    @test params(T)[2] == mapslices(SB.iqr, X, dims=3) ./ 1.35
+
     Z = copy(_X)
     for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
         x = @view Z[i, :]
         x .= 1.0 ./ (1 .+ exp.(.-(x .- median(x)) ./ (SB.iqr(x) ./ 1.35)))
     end
-    @test !isnothing(T.p)
-    @test length(T.p) == 2
-    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test !isnothing(params(T))
+    @test length(params(T)) == 2
+    @test size(params(T)[1])[1:2] == size(params(T)[2])[1:2] == size(X)[1:2]
     @test Y ≈ Z
+    @inferred denormalize(Y, T)
+    @test denormalize(Y, T) ≈ X
+    @test_nowarn normalize!(X, T)
+    @test X == Y
+    @test_nowarn denormalize!(Y, T)
+    @test Y ≈ _X
+end
+
+
+@testitem "RobustCenter" setup = [Setup] begin
+    _X = randn(10, 10, 100)
+    X = copy(_X)
+
+    N = @inferred Normalization.Robust(Center(X, dims=3))
+
+    # * Preferred patterns
+    N = Normalization.Robust(Center{Float64}())
+    fit!(N, X)
+
+    N = Normalization.Robust{Center}
+    T = fit(N, X, dims=3)
+    Y = normalize(X, T)
+
+    @test params(T)[1] == median(X, dims=3)
+
+    @test !isnothing(params(T))
+    @test length(params(T)) == 1
+    @inferred denormalize(Y, T)
     @test denormalize(Y, T) ≈ X
     @test_nowarn normalize!(X, T)
     @test X == Y
@@ -287,7 +414,8 @@ end
     idxs = rand(1:prod(size(_X)), 100)
     _X[idxs] .= NaN
     X = copy(_X)
-    T = fit(nansafe(ZScore), X)
+    N = @inferred nansafe(ZScore)
+    T = fit(N, X)
     Y = normalize(X, T)
     Z = copy(_X)
     Z = (Z .- mean(filter(!isnan, Z))) ./ std(filter(!isnan, Z))
@@ -345,29 +473,6 @@ end
     @test filter!(!isnan, X[:]) == filter!(!isnan, Y[:])
     @test_nowarn denormalize!(Y, T)
     @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, _X[:])
-end
-
-@testitem "ND normalization" setup = [Setup] begin
-    Nmax = 5
-    for _ = 1:10
-        ds = rand(2:Nmax)
-        sz = rand(2:ds, ds)
-        _X = rand(sz...)
-        Nnorm = rand(1:Nmax÷2)
-        normdims = unique(rand(1:ds, Nnorm))
-        notnormdims = setdiff(1:ndims(_X), normdims)
-        X = copy(_X)
-        T = fit(ZScore, X, dims=normdims[randperm(length(normdims))]) # Randomize dims order
-        Y = normalize(X, T)
-        @test !isnothing(T.p)
-        @test length(T.p) == 2
-        @test size(T.p[1])[notnormdims] == size(T.p[2])[notnormdims] == size(X)[notnormdims]
-        @test denormalize(Y, T) ≈ X
-        @test_nowarn normalize!(X, T)
-        @test X == Y
-        @test_nowarn denormalize!(Y, T)
-        @test Y ≈ _X
-    end
 end
 
 @testitem "Unitful Normalization compat" setup = [Setup] begin
