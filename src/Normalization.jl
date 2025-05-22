@@ -140,7 +140,7 @@ function fit(::Type{𝒯}, X::AbstractArray{A}; dims=nothing) where {A,𝒯<:Abs
 end
 
 # fit(T::AbstractNormalization, X::AbstractArray; kw...) = fit(N, X; kw...)
-(𝒯::Type{<:AbstractNormalization})(X::AbstractArray; dims=nothing) = fit(𝒯, X; dims)
+(::Type{𝒯})(X::AbstractArray; dims=nothing) where {𝒯<:AbstractNormalization} = fit(𝒯, X; dims)
 
 isfit(T::AbstractNormalization) = !all(isempty, params(T))
 function normalize!(X::AbstractArray, T::AbstractNormalization)

@@ -1,4 +1,4 @@
-export AbstractModifier, Robust
+export AbstractModifier, Robust, NaNSafe
 
 # * Modifiers
 abstract type AbstractModifier{N<:AbstractNormalization} <: AbstractNormalization{eltype(N)} end
@@ -6,12 +6,15 @@ normalization(N::AbstractModifier) = N.normalization
 normalization(::Type{M}) where {N<:AbstractNormalization,M<:AbstractModifier{N}} = N
 Base.eltype(M::AbstractModifier) = eltype(normalization(M))
 Base.eltype(::Type{M}) where {M<:AbstractModifier} = eltype(normalization(M))
+# (::Type{𝒯})(X::AbstractArray; dims=nothing) where {N<:AbstractNormalization,𝒯<:AbstractModifier{N}} = fit(𝒯, X; dims)
 
 # (::Type{M})(n::N) where {T,N<:AbstractNormalization{T},M<:AbstractModifier} = Robust{N}(n)
-# (::Type{M})(n::Type{N}; dims) where {T,N<:AbstractNormalization{T},M<:AbstractModifier} = M{N,T}(dims, ntuple(_ -> Vector{T}(), length(estimators(n))), n)
-function (::Type{M})(dims, p::NTuple{n,AbstractArray{T}}; kwargs...) where {n,T,N,M<:AbstractModifier{N}}
-    (all(x -> x == p[1], length.(p)) && error("Inconsistent parameter dimensions"))
-    norm = N(dims, p) # * Should cascade for nested modifiers
+# (::Type{M})(n::Type{N}; dims) where {T,N<:AbstractNormalization{T},M<:AbstractModifier} =
+# M{N,T}(dims, ntuple(_ -> Vector{T}(), length(estimators(n))), n)
+
+function (::Type{M})(dims, p::Tuple{Vararg{<:AbstractArray{T}}}) where {T,M<:AbstractModifier}
+    (length(unique(p)) == 1) || throw(error("Inconsistent parameter dimensions"))
+    norm = normalization(M)(dims, p) # * Should cascade for nested modifiers
     return M(norm)
 end
 
@@ -31,6 +34,7 @@ estimators(::Type{ℳ}) where {ℳ<:AbstractModifier} = error("Estimators undefi
 # * Robust normalizations
 mutable struct Robust{N<:AbstractNormalization} <: AbstractModifier{N}
     normalization::N
+    Robust{N}(norm::N) where {N<:AbstractNormalization} = new{N}(norm)
 end
 
 function _iqr(x::AbstractArray{T})::T where {T}
@@ -42,15 +46,27 @@ robust(::typeof(std)) = _iqr # * Can define other robust methods if needed
 estimators(::Type{T}) where {N,T<:Robust{N}} = robust.(estimators(N))
 
 
-mutable struct NaNSafe{T,N} <: AbstractNormalization{T}
-    normalization::AbstractNormalization{N}
+mutable struct NaNSafe{N<:AbstractNormalization} <: AbstractModifier{N}
+    normalization::N
+    NaNSafe{N}(norm::N) where {N<:AbstractNormalization} = new{N}(norm)
 end
-# ........add to interface
+
+function nansafe(f::Function)
+    function g(x; dims=nothing)
+        if isnothing(dims)
+            f(filter(!isnan, x))
+        else
+            mapslices(y -> f(filter(!isnan, y)), x; dims)
+        end
+    end
+end
+
+estimators(::Type{T}) where {N,T<:NaNSafe{N}} = nansafe.(estimators(N))
 
 
-
-mutable struct Mixed{T,N} <: AbstractNormalization{T}
-    normalization::AbstractNormalization{N}
+mutable struct Mixed{N<:AbstractNormalization} <: AbstractModifier{N}
+    normalization::N
+    Mixed{N}(norm::N) where {N<:AbstractNormalization} = new{N}(norm)
 end
 # ..........add to interface..............
 
@@ -71,10 +87,3 @@ end
 # nansafe!(T::AbstractNormalization) = (T.𝑝=_nansafe.(T.𝑝); ())
 # nansafe(T::AbstractNormalization) = (N = deepcopy(T); nansafe!(N); N)
 # nansafe(𝒯::Type{<:AbstractNormalization}; dims=nothing) = 𝒯(; dims) |> nansafe
-
-function nansafe(f::Function; dims=nothing)
-    function g(x)
-        isnothing(dims) && (dims = 1:ndims(x))
-        mapslices(y -> f(filter(!isnan, y)), x; dims)
-    end
-end

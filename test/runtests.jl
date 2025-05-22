@@ -17,6 +17,11 @@ using TestItemRunner
     import Normalization: params
 end
 
+@testitem "Aqua" begin
+    using Aqua
+    Aqua.test_all(Normalization; unbound_args=false) # unbound_args=true
+end
+
 @testitem "negdims" setup = [Setup] begin
     import Normalization.negdims
     X = randn(100, 200, 300)
@@ -127,18 +132,18 @@ end
 
     T = fit(HalfZScore, X)
     Y = normalize(X, T)
-    @test !isnothing(T.p)
-    @test length(T.p) == 2
-    @test length(T.p[1]) == 1 == length(T.p[2])
+    @test !isnothing(params(T))
+    @test length(params(T)) == 2
+    @test length(params(T)[1]) == 1 == length(params(T)[2])
     @test Y ≈ X rtol = 1e-2
 
     _X = _X .+ 10
     X = copy(_X)
     T = fit(HalfZScore, X)
     Y = normalize(X, T)
-    @test !isnothing(T.p)
-    @test length(T.p) == 2
-    @test length(T.p[1]) == 1 == length(T.p[2])
+    @test !isnothing(params(T))
+    @test length(params(T)) == 2
+    @test length(params(T)[1]) == 1 == length(params(T)[2])
     @test Y ≈ X .- 10 rtol = 1e-2
 
     @test denormalize(Y, T) ≈ X
@@ -158,9 +163,9 @@ end
 
     T = fit(OutlierSuppress, X)
     Y = normalize(X, T)
-    @test !isnothing(T.p)
-    @test length(T.p) == 2
-    @test length(T.p[1]) == 1 == length(T.p[2])
+    @test !isnothing(params(T))
+    @test length(params(T)) == 2
+    @test length(params(T)[1]) == 1 == length(params(T)[2])
     @test all(Y[1:5] .== (std(X) * 5.0 + mean(X)))
 
 
@@ -182,7 +187,7 @@ for N in normalizations
         X = copy(_X)
         T = @inferred fit(N, X)
         Y = @inferred normalize(X, T)
-        @test !isnothing(T.p)
+        @test !isnothing(params(T))
         @test @inferred denormalize(Y, T) ≈ X
         @test_nowarn @inferred normalize!(X, T)
         @test X == Y
@@ -193,7 +198,7 @@ for N in normalizations
         X = copy(_X)
         T = @inferred fit(N, X)
         Y = @inferred normalize(X, T)
-        @test !isnothing(T.p)
+        @test !isnothing(params(T))
         @test @inferred denormalize(Y, T) ≈ X
         @test_nowarn @inferred normalize!(X, T)
         @test X == Y
@@ -414,13 +419,13 @@ end
     idxs = rand(1:prod(size(_X)), 100)
     _X[idxs] .= NaN
     X = copy(_X)
-    N = @inferred nansafe(ZScore)
+    N = NaNSafe{ZScore}
     T = fit(N, X)
     Y = normalize(X, T)
     Z = copy(_X)
     Z = (Z .- mean(filter(!isnan, Z))) ./ std(filter(!isnan, Z))
-    @test !isnothing(T.p)
-    @test length(T.p) == 2
+    @test !isnothing(params(T))
+    @test length(params(T)) == 2
     @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, Z[:])
     @test filter!(!isnan, denormalize(Y, T)[:]) ≈ filter!(!isnan, X[:])
     @test_nowarn normalize!(X, T)
@@ -434,16 +439,16 @@ end
     idxs = rand(1:prod(size(_X)), 100)
     _X[idxs] .= NaN
     X = copy(_X)
-    T = fit(nansafe(ZScore), X, dims=3)
+    T = fit(NaNSafe{ZScore}, X, dims=3)
     Y = normalize(X, T)
     Z = copy(_X)
     for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
         x = @view Z[i, :]
         x .= (x .- mean(filter(!isnan, x))) ./ std(filter(!isnan, x))
     end
-    @test !isnothing(T.p)
-    @test length(T.p) == 2
-    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test !isnothing(params(T))
+    @test length(params(T)) == 2
+    @test size(params(T)[1])[1:2] == size(params(T)[2])[1:2] == size(X)[1:2]
     @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, Z[:])
     @test filter!(!isnan, denormalize(Y, T)[:]) ≈ filter!(!isnan, X[:])
     @test_nowarn normalize!(X, T)
@@ -457,16 +462,16 @@ end
     idxs = rand(1:prod(size(_X)), 100)
     _X[idxs] .= NaN
     X = copy(_X)
-    T = fit(nansafe(Sigmoid), X, dims=3)
+    T = fit(NaNSafe{Sigmoid}, X, dims=3)
     Y = normalize(X, T)
     Z = copy(_X)
     for i ∈ CartesianIndices((axes(Z, 1), axes(Z, 2)))
         x = @view Z[i, :]
         x .= 1.0 ./ (1 .+ exp.(.-(x .- mean(filter(!isnan, x))) ./ (std(filter(!isnan, x)))))
     end
-    @test !isnothing(T.p)
-    @test length(T.p) == 2
-    @test size(T.p[1])[1:2] == size(T.p[2])[1:2] == size(X)[1:2]
+    @test !isnothing(params(T))
+    @test length(params(T)) == 2
+    @test size(params(T)[1])[1:2] == size(params(T)[2])[1:2] == size(X)[1:2]
     @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, Z[:])
     @test filter!(!isnan, denormalize(Y, T)[:]) ≈ filter!(!isnan, X[:])
     @test_nowarn normalize!(X, T)
