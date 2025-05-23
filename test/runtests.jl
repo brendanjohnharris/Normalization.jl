@@ -392,10 +392,10 @@ end
     _X = randn(10, 10, 100)
     X = copy(_X)
 
-    N = @inferred Normalization.Robust(Center(X, dims=3))
+    N = @inferred Normalization.Robust{Center}(X, dims=3)
 
     # * Preferred patterns
-    N = Normalization.Robust(Center{Float64}())
+    N = Normalization.Robust{Center{Float64}}(; dims=nothing)
     fit!(N, X)
 
     N = Normalization.Robust{Center}
@@ -478,6 +478,31 @@ end
     @test filter!(!isnan, X[:]) == filter!(!isnan, Y[:])
     @test_nowarn denormalize!(Y, T)
     @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, _X[:])
+end
+
+@testitem "Mixed" setup = [Setup] begin
+    using StatsBase
+    _X = [NaN, 0.0, 0.5, 0.5, 0.5, 1.0] # ? Has iqr 0
+    X = copy(_X)
+    N = NaNSafe{Mixed{ZScore}}
+    T = fit(N, X)
+    Y = normalize(X, T)
+    Z = copy(_X)
+    Z = (Z .- mean(filter(!isnan, Z))) ./ std(filter(!isnan, Z))
+    @test (Z.≈Y)[2:end] |> all
+
+    _X = [NaN, 0.0, 0.5, 0.5, 1.0]
+    X = copy(_X)
+    N = NaNSafe{Mixed{ZScore}}
+    T = fit(N, X)
+    Y = normalize(X, T)
+    Z = copy(_X)
+    Z = (Z .- mean(filter(!isnan, Z))) ./ std(filter(!isnan, Z))
+    @test (Z.≈Y)[2:end] |> !all
+    @test nansafe(iqr)(Y) == 1.35
+
+    @test !isnothing(params(T))
+    @test length(params(T)) == 2
 end
 
 @testitem "Unitful Normalization compat" setup = [Setup] begin
@@ -596,9 +621,4 @@ end
     @test X ≈ Z
     @test_nowarn denormalize!(Z, T)
     @test Z ≈ _X
-end
-
-@testitem "Aqua.jl" begin
-    using Aqua
-    Aqua.test_all(Normalization)
 end

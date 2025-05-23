@@ -10,6 +10,7 @@ import InverseFunctions: inverse
 
 export  fit,
         fit!,
+        isfit,
         params,
         params!,
         normalize!,
@@ -20,7 +21,66 @@ export  fit,
         AbstractNormalization,
         @_Normalization
 
+"""
+    AbstractNormalization
+Abstract type for normalizations.
 
+## Constructors
+You can work with `AbstractNormalization`s as either types or instances. The type approach
+is useful for concise code, whereas the instance approach is useful for performant
+mutations.
+In the examples below we use the `ZScore` normalization, but the same syntax applies to all
+`Normalization`s.
+
+### Fit to a type
+```julia
+    X = randn(100, 10)
+    N = fit(ZScore, X; dims=nothing) # eltype inferred from X
+    N = fit(ZScore{Float32}, X; dims=nothing) # eltype set to Float32
+    N isa AbstractNormalization && N isa ZScore # Returns a concrete AbstractNormalization
+```
+
+### Fit to an instance
+```julia
+    X = randn(100, 10)
+    N = ZScore{Float64}(; dims=2) # Initializes with empty parameters
+    N isa AbstractNormalization && N isa ZScore # Returns a concrete AbstractNormalization
+    !isfit(N)
+
+    fit!(N, X; dims=1) # Fit normalization in-place, and update the `dims`
+    Normalization.dims(N) == 1
+```
+
+## Normalization and denormalization
+With a fit normalization, there are two approaches to normalizing data: in-place and
+out-of-place.
+```julia
+    _X = copy(X)
+    normalize!(_X, N) # Normalizes in-place, updating _X
+    Y = normalize(X, N) # Normalizes out-of-place, returning a new array
+    normalize(X, ZScore; dims=1) # For convenience, fits and then normalizes
+```
+For most normalizations, there is a corresponding denormalization that
+transforms data to the original space.
+```julia
+    Z = denormalize(Y, N) # Denormalizes out-of-place, returning a new array
+    Z ≈ X
+    denormalize!(Y, N) # Denormalizes in-place, updating Y
+```
+
+## Properties and traits
+### Type traits
+- `Normalization.estimators(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the estimators `N` as a tuple of functions
+- `forward(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the forward normalization function (e.g. x-> x - 𝜇 / 𝜎 for the `ZScore`)
+- inverse(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the inverse normalization function e.g. `forward(N)(ps...) |> InverseFunctions.inverse`
+- `eltype(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the eltype of the normalization parameters
+
+### Concrete properties
+- `Normalization.dims(N::<:AbstractNormalization)` returns the dimensions of the normalization. The dimensions are determined by `dims` and correspond to the mapped slices of the input array.
+- `params(N::<:AbstractNormalization)` returns the parameters of `N` as a tuple of arrays. The dimensions of arrays are the complement of `dims`.
+- `isfit(N::<:AbstractNormalization)` checks if all parameters are non-empty
+
+"""
 abstract type AbstractNormalization{T} end
 # function (::Type{𝒯})(dims, p::NTuple{N, AbstractArray{T}}; kwargs...) where {𝒯 <: AbstractNormalization, N, T}
 #     (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
@@ -44,19 +104,8 @@ macro _Normalization(name, 𝑝, 𝑓)
      )
 end
 
-# * AbstractNormalization interface
-dims(N::AbstractNormalization) = N.dims
-params(N::AbstractNormalization) = N.p
+# * Interface traits
 estimators(::N) where {N<:AbstractNormalization} = estimators(N)
-
-function dims!(N::AbstractNormalization, ds)
-    normalization(N).dims = ds
-end
-function params!(N::AbstractNormalization, ps)
-    all(x->x==ps[1], length.(ps)) && error("Inconsistent parameter dimensions")
-    normalization(N).p = ps
-end
-
 function inverse(::Type{N}) where {N<:AbstractNormalization}
     function _inverse(ps...,)
         inverse(forward(N)(ps...))
@@ -64,16 +113,31 @@ function inverse(::Type{N}) where {N<:AbstractNormalization}
 end
 forward(::N) where {N<:AbstractNormalization} = forward(N)
 inverse(::N) where {N<:AbstractNormalization} = inverse(N)
-# forward!(N::AbstractNormalization) = x -> map!(forward(N)(params(N)...), x, x)
-# inverse!(N::AbstractNormalization) = x -> map!(inverse(N)(params(N)...), x, x)
+normalization(::Type{N}) where {N<:AbstractNormalization} = N
+Base.eltype(::AbstractNormalization{T}) where {T} = T
+Base.eltype(::Type{<:AbstractNormalization{T}}) where {T} = T
+isfit(::Type{N}) where {N<:AbstractNormalization} = false
 
+# * Interface properties
+dims(N::AbstractNormalization) = N.dims
+params(N::AbstractNormalization) = N.p
+normalization(N::AbstractNormalization) = N
+isfit(T::AbstractNormalization) = !all(isempty, params(T))
+
+# * Mutators
+function dims!(N::AbstractNormalization, ds)
+    normalization(N).dims = ds
+end
+function params!(N::AbstractNormalization, ps)
+    all(x->x==ps[1], length.(ps)) && error("Inconsistent parameter dimensions")
+    normalization(N).p = ps
+end
 function _mapdims!(f, xs::Slices{<:AbstractArray}, ys)
     Threads.@threads for i in eachindex(xs)
         y = getindex.(ys, i)
         map!(f(only.(y)...), xs[i], xs[i])
     end
 end
-
 function mapdims!(f, x::AbstractArray{T, n}, y...; dims) where {T, n}
     isnothing(dims) && (dims = 1:n)
      max(dims...) <= n || error("A chosen dimension is greater than the number of dimensions of the reference array")
@@ -89,25 +153,31 @@ function mapdims!(f, x::AbstractArray{T, n}, y...; dims) where {T, n}
     _mapdims!(f, xs, ys)
 end
 
-function (::Type{<:AbstractNormalization})(; kwargs...)
-    throw(ArgumentError("Supply a type and dimensions to create an unfit Normalization, e.g. `ZScore{Float64}(; dims=1:2)`"))
-end
-
+# * Fitting
 reshape(args...; kwargs...) = Base.reshape(args...; kwargs...)
 reshape(x::Number, dims...) = reshape([x], dims...)
-normalization(N::AbstractNormalization) = N
-normalization(::Type{N}) where {N<:AbstractNormalization} = N
-Base.eltype(::AbstractNormalization{T}) where {T} = T
-Base.eltype(::Type{<:AbstractNormalization{T}}) where {T} = T
-
 negdims(dims, n)::NTuple{N, Integer} where {N} = filter(i->!(i in dims), 1:n) |> Tuple
-function dimparams(dims, X)
-    (isnothing(dims) || maximum(dims) ≤ ndims(X)) || throw(DimensionMismatch("Chosen dimension is greater than the number of dimensions of the reference array"))
-    dims = isnothing(dims) ? (1:ndims(X)) : dims # !!!! Pull this out and make common funcitonf or fit! as well...
-    dims = (length(dims) > 1 ? collect(dims) : dims)
-    nps = size(X) |> collect
-    nps[[dims...]] .= 1
-    return dims, nps
+@inline function dimparams(dims, X)
+    nd = ndims(X)
+    if dims === nothing
+        dims_vec = collect(1:nd)
+    elseif isa(dims, Int)
+        dims ≤ nd || throw(DimensionMismatch("Chosen dimension ($dims) exceeds ndims(X)=$nd"))
+        dims_vec = [dims]
+    else
+        @assert isa(dims, AbstractVector)
+        (isempty(dims) || maximum(dims) ≤ nd) ||
+            throw(DimensionMismatch("Chosen dimension is greater than ndims(X)=$nd"))
+        dims_vec = Vector{Int}(dims)
+    end
+    sz  = size(X)
+    flag = ntuple(i -> 0, nd)
+    for d in dims_vec
+        @inbounds flag = Base.setindex(flag, 1, d)
+    end
+    nps = ntuple(i -> (flag[i] == 1 ? 1 : sz[i]), nd)
+
+    return dims_vec, nps
 end
 function fit!(T::AbstractNormalization, X::AbstractArray{A}; dims=Normalization.dims(T)) where {A}
     eltype(T) == A || throw(TypeError(:fit!, "Normalization", eltype(T), X))
@@ -122,6 +192,7 @@ function fit!(T::AbstractNormalization, X::AbstractArray{A}; dims=Normalization.
     params!(T, ps)
     nothing
 end
+
 function fit(::Type{𝒯}, X::AbstractArray{A}; dims=nothing) where {A,T,𝒯<:AbstractNormalization{T}}
     dims, nps = dimparams(dims, X)
     Xs = eachslice(X; dims=negdims(dims, ndims(X)), drop=false)
@@ -138,26 +209,26 @@ function fit(::Type{𝒯}, X::AbstractArray{A}; dims=nothing) where {A,𝒯<:Abs
     end
     𝒯{A}(dims, ps)
 end
+fit(N::AbstractNormalization, X::AbstractArray{A}; dims=Normalization.dims(N)) where {A} = fit(typeof(N), X; dims)
 
-# fit(T::AbstractNormalization, X::AbstractArray; kw...) = fit(N, X; kw...)
-(::Type{𝒯})(X::AbstractArray; dims=nothing) where {𝒯<:AbstractNormalization} = fit(𝒯, X; dims)
-
-isfit(T::AbstractNormalization) = !all(isempty, params(T))
+# * Normalizations
 function normalize!(X::AbstractArray, T::AbstractNormalization)
-    isfit(T) || fit!(T, X)
-    mapdims!(forward(T), X, params(T)...; dims=Normalization.dims(T))
+    dims = Normalization.dims(T)
+    isfit(T) || fit!(T, X; dims)
+    mapdims!(forward(T), X, params(T)...; dims)
     return nothing
 end
-function normalize!(X, ::Type{𝒯}; dims=nothing) where {𝒯 <: AbstractNormalization}
-    normalize!(X, fit(𝒯, X; dims))
+function normalize!(X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
+    normalize!(X, fit(𝒯, X; kwargs...))
 end
 function normalize(X, T::AbstractNormalization; kwargs...)
     Y = copy(X)
     normalize!(Y, T; kwargs...)
     return Y
 end
-
-(T::AbstractNormalization)(X::AbstractArray{A}) where {A} = normalize(X, T)
+function normalize(X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
+    normalize(X, fit(𝒯, X; kwargs...))
+end
 
 NotFitError() = error("Cannot denormalize with a normalization that has not been fitted")
 function denormalize!(X::AbstractArray, T::AbstractNormalization)
@@ -173,6 +244,10 @@ function denormalize(X, args...)
     denormalize!(Y, args...)
     return Y
 end
+
+# * Additional constructors
+(::Type{𝒯})(X::AbstractArray; dims=nothing) where {𝒯<:AbstractNormalization} = fit(𝒯, X; dims)
+(T::AbstractNormalization)(X::AbstractArray{A}) where {A} = normalize(X, T)
 
 include("Normalizations.jl")
 include("Modifiers.jl")
