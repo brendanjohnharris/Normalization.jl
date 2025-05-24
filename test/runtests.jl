@@ -288,7 +288,7 @@ end
     X = copy(_X)
     T1 = fit(ZScore, X, dims=[2, 3])
     T = fit(ZScore, X, dims=(2, 3))
-    @test T1.dims == T.dims == [2, 3]
+    @test all(T1.dims .== T.dims .== [2, 3])
     @test T1.p == T.p
     Y = normalize(X, T)
     Z = copy(_X)
@@ -355,12 +355,11 @@ end
     _X = randn(10, 10, 100)
     X = copy(_X)
 
-    N = @inferred Normalization.Robust(Sigmoid(X, dims=3))
+    N = @inferred Normalization.Robust{Sigmoid}(X, dims=3)
     n = @inferred ZScore{Float64}(; dims=1)
-    N = @inferred Normalization.Robust(n)
 
     # * Preferred patterns
-    N = Normalization.Robust(Sigmoid{Float64}())
+    N = Normalization.Robust{Sigmoid{Float64}}()
     fit!(N, X)
 
     N = Normalization.Robust{Sigmoid}
@@ -559,11 +558,11 @@ end
     # * ZScore a 3D array over the first dim.
     _X = DimArray(randn(5, 6, 7), (Dim{:a}(1:5), Dim{:b}(1:6), Dim{:c}(1:7)))
     X = copy(_X)
-    T = fit(RobustZScore, X, dims=1)
+    T = fit(Robust{ZScore}, X, dims=1)
     Z = normalize(X, T)
-    N = RobustZScore(X; dims=1)
+    N = Robust{ZScore}(X; dims=1)
     @test N(X) == Z
-    @test !isnothing(T.p)
+    @test !isnothing(params(T))
 end
 
 @testitem "StatsBase comparison" setup = [Setup] begin
@@ -583,10 +582,11 @@ end
 end
 
 @testitem "DataFrames ext" setup = [Setup] begin
+    using DataFrames
     _X = DataFrame(
-        :temperature_A => [18.1, 19.5, 21.1],
-        :temperature_B => [16.2, 17.2, 17.5],
-        :temperature_C => [12.8, 13.1, 14.4],
+        :A => [18.1, 19.5, 21.1],
+        :B => [16.2, 17.2, 17.5],
+        :C => [12.8, 13.1, 14.4],
     )
 
     X = copy(_X)
@@ -594,8 +594,7 @@ end
     # * ZScore a DataFrame over the first dim.
     T = fit(ZScore, X, dims=1)
     Z = normalize(X, T)
-    N = ZScore(X; dims=1) # Alternate syntax
-    @test N(X) == Z
+    @test T(X) == Z
     @test !isnothing(T.p)
     @test length(T.p) == 2
     @test length(T.p[1]) == length(T.p[2]) == size(X, 2)
@@ -610,8 +609,7 @@ end
     X = copy(_X)
     T = fit(ZScore, X, dims=2)
     Z = normalize(X, T)
-    N = ZScore(X; dims=2) # Alternate syntax
-    @test N(X) == Z
+    @test T(X) == Z
     @test !isnothing(T.p)
     @test length(T.p) == 2
     @test length(T.p[1]) == length(T.p[2]) == size(X, 1)

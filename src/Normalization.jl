@@ -160,24 +160,19 @@ negdims(dims, n)::NTuple{N, Integer} where {N} = filter(i->!(i in dims), 1:n) |>
 @inline function dimparams(dims, X)
     nd = ndims(X)
     if dims === nothing
-        dims_vec = collect(1:nd)
-    elseif isa(dims, Int)
-        dims ≤ nd || throw(DimensionMismatch("Chosen dimension ($dims) exceeds ndims(X)=$nd"))
-        dims_vec = [dims]
+        dims = collect(1:nd)
     else
-        @assert isa(dims, AbstractVector)
         (isempty(dims) || maximum(dims) ≤ nd) ||
             throw(DimensionMismatch("Chosen dimension is greater than ndims(X)=$nd"))
-        dims_vec = Vector{Int}(dims)
     end
     sz  = size(X)
     flag = ntuple(i -> 0, nd)
-    for d in dims_vec
+    for d in dims
         @inbounds flag = Base.setindex(flag, 1, d)
     end
     nps = ntuple(i -> (flag[i] == 1 ? 1 : sz[i]), nd)
 
-    return dims_vec, nps
+    return dims, nps
 end
 function fit!(T::AbstractNormalization, X::AbstractArray{A}; dims=Normalization.dims(T)) where {A}
     eltype(T) == A || throw(TypeError(:fit!, "Normalization", eltype(T), X))
