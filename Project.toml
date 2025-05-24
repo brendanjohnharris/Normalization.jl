@@ -21,7 +21,7 @@ DimensionalDataExt = "DimensionalData"
 UnitfulExt = "Unitful"
 
 [compat]
-Accessors = "0.1.42"
+Accessors = "0.1"
 DataFrames = "1"
 DimensionalData = "0.27 - 0.29"
 InverseFunctions = "0.1.17"
