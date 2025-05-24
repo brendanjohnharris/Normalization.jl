@@ -1,5 +1,6 @@
 using TestItems
 using TestItemRunner
+using Normalization
 
 @run_package_tests
 
@@ -179,8 +180,8 @@ end
     @test all(Y[1:5] .< 10)
 end
 
-normalizations = [ZScore, RobustZScore, Sigmoid, RobustSigmoid, MinMax, Center, RobustCenter, UnitEnergy, HalfZScore, RobustHalfZScore]
-forward_normalizations = [OutlierSuppress, RobustOutlierSuppress]
+normalizations = [ZScore, Robust{ZScore}, Sigmoid, Robust{Sigmoid}, MinMax, Center, Robust{Center}, UnitEnergy, HalfZScore, Robust{HalfZScore}]
+forward_normalizations = [OutlierSuppress, Robust{OutlierSuppress}]
 for N in normalizations
     @testitem "$N" setup = [Setup] begin
         _X = rand(100)
