@@ -72,7 +72,7 @@ transforms data to the original space.
 ### Type traits
 - `Normalization.estimators(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the estimators `N` as a tuple of functions
 - `forward(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the forward normalization function (e.g. x-> x - 𝜇 / 𝜎 for the `ZScore`)
-- inverse(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the inverse normalization function e.g. `forward(N)(ps...) |> InverseFunctions.inverse`
+- inverse(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization}})` returns the inverse normalization function e.g. `forward(N)(ps...) |> InverseFunctions.inverse`
 - `eltype(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the eltype of the normalization parameters
 
 ### Concrete properties
@@ -82,14 +82,6 @@ transforms data to the original space.
 
 """
 abstract type AbstractNormalization{T} end
-# function (::Type{𝒯})(dims, p::NTuple{N, AbstractArray{T}}; kwargs...) where {𝒯 <: AbstractNormalization, N, T}
-#     (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
-#     𝒯{T}(; dims, p, kwargs...)
-# end
-# function (::Type{𝒯})(dims, p::NTuple{N, AbstractArray{T}}; kwargs...) where {N, T, 𝒯 <: AbstractNormalization{T}}
-#     (all(x->x==p[1], length.(p)) && error("Inconsistent parameter dimensions"))
-#     𝒯{T}(; dims, p, kwargs...)
-# end
 
 
 function forward end

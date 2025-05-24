@@ -13,7 +13,7 @@ Any concrete modifier type `Modifier <: AbstractModifier` (such as `Robust`, `Mi
 AbstractNormalization`:
 ```julia
     N = Modifier{Normalization} # A combined type with a free `eltype` of `Any`
-    N = Modifier{Normalization{Float64}} # A concrete type with a concrete `eltype` of `Float64`
+    N = Modifier{Normalization{Float64}} # A concrete `eltype` of `Float64`
 ```
 All `AbstractNormalization` constructors and traits are then defined for `AbstractModifier` types.
 """
@@ -80,7 +80,13 @@ function mixed(::typeof(std))
 end
 estimators(::Type{T}) where {N,T<:Mixed{N}} = mixed.(estimators(N))
 
+"""
+    NaNSafe{N<:AbstractNormalization} <: AbstractModifier{N}
 
+A modifier type that wraps an existing normalization and replaces its estimators with NaN-safe versions.
+
+`NaNSafe` modifies the estimators of the underlying normalization so that they ignore any `NaN` values in the input data.
+"""
 mutable struct NaNSafe{N<:AbstractNormalization} <: AbstractModifier{N}
     normalization::N
     NaNSafe{N}(norm::N) where {N<:AbstractNormalization} = new{N}(norm)

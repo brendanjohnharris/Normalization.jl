@@ -6,33 +6,52 @@
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 [![Downloads](https://img.shields.io/badge/dynamic/json?url=http%3A%2F%2Fjuliapkgstats.com%2Fapi%2Fv1%2Fmonthly_downloads%2FNormalization&query=total_requests&suffix=%2Fmonth&label=Downloads)](http://juliapkgstats.com/pkg/Normalization)
 
-This package allows you to easily normalize an array over any dimensions.
-It also provides a bunch of normalization methods, such as the z-score, sigmoid, robust, mixed, and NaN-safe normalizations.
+This package allows you to easily normalize an array over any combination of dimensions, with a bunch of methods (z-score, sigmoid, centering, minmax, etc.) and modifiers (robust, mixed, NaN-safe).
 
 ## Usage
 
-Each normalization method is a subtype of `AbstractNormalization`. Instances of a normalization, including any parameters (such as the mean of a dataset) are stored in a variable of the `AbstractNormalization` type.
-For example, to normalize a 2D array using the `ZScore` normalization method (or any other `<: AbstractNormalization`) over all dimensions:
+Each normalization method is a subtype of `AbstractNormalization`.
+Each `AbstractNormalization` subtype has its own `estimators` and `forward` methods that define how parameters are calculated and the normalization formula.
+Each `AbstractNormalization` instance contains the concrete parameter values for a normalization, fit to a given input array.
+
+You can work with `AbstractNormalization`s as either types or instances.
+The type approach is useful for concise code, whereas the instance approach is useful for performant mutations.
+In the examples below we use the `ZScore` normalization, but the same syntax applies to all `Normalization`s.
+
+### Fit to a type
 ```julia
-X = rand(100, 100)
-N = ZScore(X) # A normalization fit to X, NOT the normalized array
-N = ZScore()(X) # An alternative to the line above
-Y = N(X) # The normalized array
-Z = N(rand(100, 100)) # Apply a normalization with parameters fit to X on a new array
+    X = randn(100, 10)
+    N = fit(ZScore, X; dims=nothing) # eltype inferred from X
+    N = fit(ZScore{Float32}, X; dims=nothing) # eltype set to Float32
+    N isa AbstractNormalization && N isa ZScore # Returns a concrete AbstractNormalization
 ```
 
-There is also an alternative, preferred, syntax:
+### Fit to an instance
 ```julia
-using Statistics
-N = fit(ZScore, X)
-Y = normalize(X, N)
-normalize!(X, N) # In place, writing over X
+    X = randn(100, 10)
+    N = ZScore{Float64}(; dims=2) # Initializes with empty parameters
+    N isa AbstractNormalization && N isa ZScore # Returns a concrete AbstractNormalization
+    !isfit(N)
+
+    fit!(N, X; dims=1) # Fit normalization in-place, and update the `dims`
+    Normalization.dims(N) == 1
 ```
 
-A normalization can also be reversed:
+## Normalization and denormalization
+With a fit normalization, there are two approaches to normalizing data: in-place and
+out-of-place.
 ```julia
-_X = denormalize(X, N) # Apply the inverse normalization
-denormalize!(X, N) # Or do the inverse in place
+    _X = copy(X)
+    normalize!(_X, N) # Normalizes in-place, updating _X
+    Y = normalize(X, N) # Normalizes out-of-place, returning a new array
+    normalize(X, ZScore; dims=1) # For convenience, fits and then normalizes
+```
+For most normalizations, there is a corresponding denormalization that
+transforms data to the original space.
+```julia
+    Z = denormalize(Y, N) # Denormalizes out-of-place, returning a new array
+    Z ≈ X
+    denormalize!(Y, N) # Denormalizes in-place, updating Y
 ```
 
 Both syntaxes allow you to specify the dimensions to normalize over. For example, to normalize each 2D slice (i.e. iterating over the 3rd dimension) of a 3D array:
@@ -57,25 +76,47 @@ Any of these normalizations will work in place of `ZScore` in the examples above
 | `OutlierSuppress` | $\max(\min(x, \mu + 5\sigma), \mu - 5\sigma)$ | Clip values outside of $\mu \pm 5\sigma$ |
 
 
-### Robust normalizations
-This package also defines robust versions of any normalization methods that have $\mu$ (the mean) and $\sigma$ (the standard deviation) parameters.
-`Robust` normalizations, including `RobustZScore` and `RobustSigmoid`, use the `median` and `iqr/1.35` rather than the `mean` and `std` for a normalization that is less sensitive to outliers.
-There are also `Mixed` methods, such as `MixedZScore` and `MixedSigmoid`, that default to the `Robust` versions but use the regular parameters (`mean` and `std`) if the `iqr` is 0.
+## Normalization modifiers
+What if the input data contains NaNs or outliers?
+We provide `AbstractModifier` types that can wrap an `AbstractNormalization` to modify its behavior.
+
+Any concrete modifier type `Modifier <: AbstractModifier` (for example, `NaNSafe`) can be applied to a concrete normalization type `Normalization <:AbstractNormalization`:
+```julia
+    N = NaNSafe{ZScore} # A combined type with a free `eltype` of `Any`
+    N = NaNSafe{ZScore{Float64}} # A concrete `eltype` of `Float64`
+```
+Any `AbstractNormalization` can be used in the same way as an `AbstractModifier`.
 
 ### NaN-safe normalizations
+If the input array contains any `NaN` values, the ordinary normalizations given above will fit with `NaN` parameters and return `NaN` arrays.
+To circumvent this, any normalization can be made '`NaN`-safe', meaning it ignores `NaN` values in the input array, using the `NaNSafe` modifier.
 
-If the input array contains any `NaN` values, the normalizations given above will fit with `NaN` parameters and return `NaN` arrays. To circumvent this, any normalization can be made '`NaN`-safe', meaning it ignores `NaN` values in the input array. Using the `ZScore` example:
-```julia
-N = nansafe(ZScore)
-N = fit(N, X)
-Y = N(X)
-```
+### Robust modifier
+The `Robust` modifier can be used with any `AbstractNormalization` that has mean and standard deviation parameters.
+The `Robust` modifier converts the `mean` to `median` and `std` to `iqr/1.35`, giving a normalization that is less sensitive to outliers.
 
-### New normalizations
+### Mixed modifier
+The `Mixed` modifier defaults to the behavior of `Robust` but uses the regular parameters (`mean` and `std`) if the `iqr` is 0.
+
+## Properties and traits
+The following are common methods defined for all `AbstractNormalization` subtypes and instances.
+
+### Type traits
+- `Normalization.estimators(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the estimators `N` as a tuple of functions
+- `forward(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the forward normalization function (e.g. $x$ -> $x - \mu / \sigma$ for the `ZScore`)
+- inverse(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization}})` returns the inverse normalization function e.g. `forward(N)(ps...) |> InverseFunctions.inverse`
+- `eltype(N::Union{<:AbstractNormalization,Type{<:AbstractNormalization})` returns the eltype of the normalization parameters
+
+### Concrete properties
+- `Normalization.dims(N::<:AbstractNormalization)` returns the dimensions of the normalization. The dimensions are determined by `dims` and correspond to the mapped slices of the input array.
+- `params(N::<:AbstractNormalization)` returns the parameters of `N` as a tuple of arrays. The dimensions of arrays are the complement of `dims`.
+- `isfit(N::<:AbstractNormalization)` checks if all parameters are non-empty
+
+<!-- ### New normalizations
 
 Finally, there is also a macro to define your own normalization (honestly you could just make the `struct` directly). For example, the `ZScore` is defined as:
 ```julia
 @_Normalization ZScore (mean, std)  (x, 𝜇, 𝜎) -> x .= (x .- 𝜇)./𝜎  #=
                                  =# (y, 𝜇, 𝜎) -> y .= y.*𝜎 .+ 𝜇
 ```
-Here, the first argument is a name for the normalization, the second is a tuple of parameter functions, the third is a vectorised, in-place function of an array `x` and any parameters, and the fourth is a function for the inverse transformation.
+Here, the first argument is a name for the normalization, the second is a tuple of parameter functions, the third is a vectorised, in-place function of an array `x` and any parameters, and the fourth is a function for the inverse transformation. -->
