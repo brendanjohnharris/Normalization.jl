@@ -642,4 +642,9 @@ end
     @test X ≈ Z
     @test_nowarn denormalize!(Z, T)
     @test Z ≈ _X
+
+    # * In-place normalization
+    Z = normalize(X, T)
+    normalize!(X, T)
+    @test X ≈ Z
 end
