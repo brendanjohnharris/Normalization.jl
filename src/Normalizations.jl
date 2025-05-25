@@ -1,3 +1,6 @@
+using Statistics
+import Accessors: @o
+
 export ZScore,
     HalfZScore,
     Sigmoid,

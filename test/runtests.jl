@@ -209,10 +209,14 @@ for N in normalizations
 end
 for N in forward_normalizations
     @testitem "$N" setup = [Setup] begin
+        @test Normalization.normalization(N) == N
+        @test !isfit(N)
+
         _X = rand(100)
         X = copy(_X)
         T = @inferred fit(N, X)
         Y = @inferred normalize(X, T)
+        @test fit(T, randn(100)) != T
         @test !isnothing(T.p)
         @test_nowarn @inferred normalize!(X, T)
         @test X == Y
@@ -224,6 +228,8 @@ for N in forward_normalizations
         @test !isnothing(T.p)
         @test_nowarn @inferred normalize!(X, T)
         @test X == Y
+
+        @test_throws "Cannot denormalize" denormalize!(X, N; dims=1)
     end
 end
 
@@ -415,9 +421,11 @@ end
 end
 
 @testitem "Nansafe" setup = [Setup] begin
+
     _X = randn(1000)
     idxs = rand(1:prod(size(_X)), 100)
     _X[idxs] .= NaN
+
     X = copy(_X)
     N = NaNSafe{ZScore}
     T = fit(N, X)
@@ -432,6 +440,18 @@ end
     @test filter!(!isnan, X[:]) == filter!(!isnan, Y[:])
     @test_nowarn denormalize!(Y, T)
     @test filter!(!isnan, Y[:]) ≈ filter!(!isnan, _X[:])
+
+    # * 2D array
+    _X = randn(100, 10)
+    idxs = rand(1:prod(size(_X)), 100)
+    _X[idxs] .= NaN
+
+    @test all(!isnan, nansafe(sum)(X, dims=2))
+
+    X = copy(_X)
+    N = NaNSafe{ZScore}
+    T = @test_nowarn fit(N, X; dims=2)
+    Y = @test_nowarn normalize(X, T)
 end
 
 @testitem "NaNZScore" setup = [Setup] begin

@@ -1,8 +1,6 @@
 #! format: off
 module Normalization
 
-using Statistics
-import Accessors: @o
 import LinearAlgebra:   normalize,
                         normalize!
 import StatsAPI: fit, fit!, params
@@ -17,7 +15,6 @@ export  fit,
         normalize,
         denormalize!,
         denormalize,
-        nansafe,
         AbstractNormalization,
         @_Normalization
 

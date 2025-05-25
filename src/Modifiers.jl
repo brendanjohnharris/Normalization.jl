@@ -1,4 +1,4 @@
-export AbstractModifier, Robust, NaNSafe, Mixed
+export AbstractModifier, Robust, nansafe, NaNSafe, Mixed
 
 # * Modifiers
 """
@@ -92,14 +92,17 @@ mutable struct NaNSafe{N<:AbstractNormalization} <: AbstractModifier{N}
     NaNSafe{N}(norm::N) where {N<:AbstractNormalization} = new{N}(norm)
 end
 
-function nansafe(f::Function)
+function nansafe(f)
+    _apply(slice) = f(Iterators.filter(!isnan, slice))
     function g(x; dims=nothing)
         if isnothing(dims)
-            f(filter(!isnan, x))
+            return _apply(x)
         else
-            mapslices(y -> f(filter(!isnan, y)), x; dims)
+            dims = negdims(dims, ndims(x))
+            return map(_apply, eachslice(x; dims))
         end
     end
+    return g
 end
 
 estimators(::Type{T}) where {N,T<:NaNSafe{N}} = nansafe.(estimators(N))
