@@ -52,8 +52,9 @@ mutable struct Robust{N<:AbstractNormalization} <: AbstractModifier{N}
     Robust{N}(norm::N) where {N<:AbstractNormalization} = new{N}(norm)
 end
 
-function _iqr(x::AbstractArray{T})::T where {T}
-    eltype(x).((quantile(x[:], 0.75) - quantile(x[:], 0.25)) / 1.35) # ? Divide by 1.35 so that std(x) ≈ _iqr(x) when x contains normally distributed values
+function _iqr(x)
+    l, u = quantile(x, (0.25, 0.75))
+    (u - l) / 1.35 # ? Divide by 1.35 so that std(x) ≈ _iqr(x) when x contains normally distributed values
 end
 
 robust(::typeof(mean)) = median
@@ -92,6 +93,16 @@ mutable struct NaNSafe{N<:AbstractNormalization} <: AbstractModifier{N}
     NaNSafe{N}(norm::N) where {N<:AbstractNormalization} = new{N}(norm)
 end
 
+# function nansafe(f::Function)
+#     function g(x; dims=nothing)
+#         if isnothing(dims)
+#             f(filter(!isnan, x))
+#         else
+#             mapslices(y -> f(filter(!isnan, y)), x; dims)
+#         end
+#     end
+# end
+
 function nansafe(f)
     _apply(slice) = f(Iterators.filter(!isnan, slice))
     function g(x; dims=nothing)
@@ -102,7 +113,6 @@ function nansafe(f)
             return map(_apply, eachslice(x; dims))
         end
     end
-    return g
 end
 
 estimators(::Type{T}) where {N,T<:NaNSafe{N}} = nansafe.(estimators(N))
