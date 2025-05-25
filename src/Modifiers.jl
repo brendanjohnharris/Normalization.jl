@@ -12,8 +12,8 @@ Any concrete modifier type `Modifier <: AbstractModifier` (such as `Robust`, `Mi
 `NaNSafe`) can be applied to a concrete normalization type `Normalization <:
 AbstractNormalization`:
 ```julia
-    N = Modifier{Normalization} # A combined type with a free `eltype` of `Any`
-    N = Modifier{Normalization{Float64}} # A concrete `eltype` of `Float64`
+N = Modifier{Normalization} # A combined type with a free `eltype` of `Any`
+N = Modifier{Normalization{Float64}} # A concrete `eltype` of `Float64`
 ```
 All `AbstractNormalization` constructors and traits are then defined for `AbstractModifier` types.
 """

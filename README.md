@@ -20,38 +20,38 @@ In the examples below we use the `ZScore` normalization, but the same syntax app
 
 ### Fit to a type
 ```julia
-    X = randn(100, 10)
-    N = fit(ZScore, X; dims=nothing) # eltype inferred from X
-    N = fit(ZScore{Float32}, X; dims=nothing) # eltype set to Float32
-    N isa AbstractNormalization && N isa ZScore # Returns a concrete AbstractNormalization
+X = randn(100, 10)
+N = fit(ZScore, X; dims=nothing) # eltype inferred from X
+N = fit(ZScore{Float32}, X; dims=nothing) # eltype set to Float32
+N isa AbstractNormalization && N isa ZScore # Returns a concrete AbstractNormalization
 ```
 
 ### Fit to an instance
 ```julia
-    X = randn(100, 10)
-    N = ZScore{Float64}(; dims=2) # Initializes with empty parameters
-    N isa AbstractNormalization && N isa ZScore # Returns a concrete AbstractNormalization
-    !isfit(N)
+X = randn(100, 10)
+N = ZScore{Float64}(; dims=2) # Initializes with empty parameters
+N isa AbstractNormalization && N isa ZScore # Returns a concrete AbstractNormalization
+!isfit(N)
 
-    fit!(N, X; dims=1) # Fit normalization in-place, and update the `dims`
-    Normalization.dims(N) == 1
+fit!(N, X; dims=1) # Fit normalization in-place, and update the `dims`
+Normalization.dims(N) == 1
 ```
 
 ## Normalization and denormalization
 With a fit normalization, there are two approaches to normalizing data: in-place and
 out-of-place.
 ```julia
-    _X = copy(X)
-    normalize!(_X, N) # Normalizes in-place, updating _X
-    Y = normalize(X, N) # Normalizes out-of-place, returning a new array
-    normalize(X, ZScore; dims=1) # For convenience, fits and then normalizes
+_X = copy(X)
+normalize!(_X, N) # Normalizes in-place, updating _X
+Y = normalize(X, N) # Normalizes out-of-place, returning a new array
+normalize(X, ZScore; dims=1) # For convenience, fits and then normalizes
 ```
 For most normalizations, there is a corresponding denormalization that
 transforms data to the original space.
 ```julia
-    Z = denormalize(Y, N) # Denormalizes out-of-place, returning a new array
-    Z ≈ X
-    denormalize!(Y, N) # Denormalizes in-place, updating Y
+Z = denormalize(Y, N) # Denormalizes out-of-place, returning a new array
+Z ≈ X
+denormalize!(Y, N) # Denormalizes in-place, updating Y
 ```
 
 Both syntaxes allow you to specify the dimensions to normalize over. For example, to normalize each 2D slice (i.e. iterating over the 3rd dimension) of a 3D array:
