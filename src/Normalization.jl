@@ -124,10 +124,10 @@ function params!(N::AbstractNormalization, ps)
     all(x->x==ps[1], length.(ps)) && error("Inconsistent parameter dimensions")
     normalization(N).p = ps
 end
-function _mapdims!(f, xs::Slices{<:AbstractArray}, ys)
-    Threads.@threads for i in eachindex(xs)
-        y = getindex.(ys, i)
-        map!(f(only.(y)...), xs[i], xs[i])
+function _mapdims!(f, xs::Slices{<:AbstractArray}, ys::NTuple{N, <:AbstractArray}) where {N}
+    @sync Threads.@threads for i in eachindex(xs) #
+        y = ntuple((j -> @inbounds ys[j][i]), Val(N)) # Extract parameters for nth slice
+        @inbounds map!(f(map(only, y)...), xs[i], xs[i])
     end
 end
 function mapdims!(f, x::AbstractArray{T, n}, y...; dims) where {T, n}
