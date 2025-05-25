@@ -79,7 +79,7 @@ transforms data to the original space.
 
 """
 abstract type AbstractNormalization{T} end
-
+const NormUnion = Union{<:AbstractNormalization, Type{<:AbstractNormalization}}
 
 function forward end
 macro _Normalization(name, 𝑝, 𝑓)
@@ -121,26 +121,34 @@ function params!(N::AbstractNormalization, ps)
     all(x->x==ps[1], length.(ps)) && error("Inconsistent parameter dimensions")
     normalization(N).p = ps
 end
-function _mapdims!(f, xs::Slices{<:AbstractArray}, ys::NTuple{N, <:AbstractArray}) where {N}
+
+function __mapdims!(z, f, x, y)
+    @inbounds map!(f(map(only, y)...), z, x)
+end
+function _mapdims!(zs::Slices{<:AbstractArray}, f, xs::Slices{<:AbstractArray}, ys::NTuple{N, <:AbstractArray}) where {N}
     @sync Threads.@threads for i in eachindex(xs) #
         y = ntuple((j -> @inbounds ys[j][i]), Val(N)) # Extract parameters for nth slice
-        @inbounds map!(f(map(only, y)...), xs[i], xs[i])
+        __mapdims!(zs[i], f, xs[i], y)
     end
 end
-function mapdims!(f, x::AbstractArray{T, n}, y...; dims) where {T, n}
+function mapdims!(z, f, x::AbstractArray{T, n}, y; dims) where {T, n}
     isnothing(dims) && (dims = 1:n)
      max(dims...) <= n || error("A chosen dimension is greater than the number of dimensions of the reference array")
     unique(dims) == [dims...] || error("Repeated dimensions")
-    length(dims) == n && return map!(f(only.(y)...), x, x) # ? Shortcut for global normalisation
+    length(dims) == n && return __mapdims!(z, f, x, y) # ? Shortcut for global normalisation
     all(all(size.(y, i) .== 1) for i ∈ dims) || error("Inconsistent dimensions; dimensions $dims must have size 1")
 
     negs = negdims(dims, n)
     all(all(size(x, i) .== size.(y, i)) for i ∈ negs) || error("Inconsistent dimensions; dimensions $negs must have size $(size(x)[collect(negs)])")
 
     xs = eachslice(x; dims=negs)
+    zs = eachslice(z; dims=negs)
     ys = eachslice.(y; dims=negs)
-    _mapdims!(f, xs, ys)
+    _mapdims!(zs, f, xs, ys)
 end
+
+# * mapdims! with same input & output
+mapdims!(f, x, y; kwargs...) = mapdims!(x, f, x, y; kwargs...)
 
 # * Fitting
 reshape(args...; kwargs...) = Base.reshape(args...; kwargs...)
@@ -196,15 +204,17 @@ end
 fit(N::AbstractNormalization, X::AbstractArray{A}; dims=Normalization.dims(N)) where {A} = fit(typeof(N), X; dims)
 
 # * Normalizations
-function normalize!(X::AbstractArray, T::AbstractNormalization)
+function normalize!(Z::AbstractArray, X::AbstractArray, T::AbstractNormalization)
     dims = Normalization.dims(T)
     isfit(T) || fit!(T, X; dims)
-    mapdims!(forward(T), X, params(T)...; dims)
+    mapdims!(Z, forward(T), X, params(T); dims)
     return nothing
 end
-function normalize!(X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
-    normalize!(X, fit(𝒯, X; kwargs...))
+function normalize!(Z, X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
+    normalize!(Z, X, fit(𝒯, X; kwargs...))
 end
+normalize!(X, T::NormUnion; kwargs...) = normalize!(X, X, T; kwargs...)
+
 function normalize(X, T::AbstractNormalization; kwargs...)
     Y = copy(X)
     normalize!(Y, T; kwargs...)
@@ -215,14 +225,15 @@ function normalize(X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalizat
 end
 
 NotFitError() = error("Cannot denormalize with a normalization that has not been fitted")
-function denormalize!(X::AbstractArray, T::AbstractNormalization)
+function denormalize!(Z::AbstractArray, X::AbstractArray, T::AbstractNormalization)
     isfit(T) || NotFitError()
-    mapdims!(inverse(T), X, params(T)...; dims=Normalization.dims(T))
+    mapdims!(Z, inverse(T), X, params(T); dims=Normalization.dims(T))
     return nothing
 end
-function denormalize!(X, ::Type{𝒯}; dims=nothing) where {𝒯 <: AbstractNormalization}
+function denormalize!(Z, X,::Type{𝒯}; dims=nothing) where {𝒯 <: AbstractNormalization}
     NotFitError()
 end
+denormalize!(X, T::NormUnion; kwargs...) = denormalize!(X, X, T; kwargs...)
 function denormalize(X, args...)
     Y = copy(X)
     denormalize!(Y, args...)

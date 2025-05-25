@@ -41,7 +41,7 @@ end
             x^2 + y^2
         end
     end
-    mapdims!(f!, X, Y; dims=(2, 3))
+    mapdims!(f!, X, (Y,); dims=(2, 3))
     @test X == _X .^ 2 .+ Y .^ 2
 end
 
@@ -535,6 +535,8 @@ end
     @test length(T.p[1]) == 1 == length(T.p[2])
     @test Y ≈ (X .- mean(X)) ./ std(X)
     @test eltype(X) == eltype(_X) == eltype(T)
+
+    @test denormalize(Y, T) ≈ X
 end
 
 @testitem "DimensionalData compat" setup = [Setup] begin

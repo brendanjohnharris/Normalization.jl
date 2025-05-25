@@ -93,16 +93,6 @@ mutable struct NaNSafe{N<:AbstractNormalization} <: AbstractModifier{N}
     NaNSafe{N}(norm::N) where {N<:AbstractNormalization} = new{N}(norm)
 end
 
-# function nansafe(f::Function)
-#     function g(x; dims=nothing)
-#         if isnothing(dims)
-#             f(filter(!isnan, x))
-#         else
-#             mapslices(y -> f(filter(!isnan, y)), x; dims)
-#         end
-#     end
-# end
-
 function nansafe(f)
     _apply(slice) = f(Iterators.filter(!isnan, slice))
     function g(x; dims=nothing)
