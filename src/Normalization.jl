@@ -89,9 +89,9 @@ macro _Normalization(name, 𝑝, 𝑓)
      end;
      Normalization.estimators(::Type{N}) where {N<:$(esc(name))} = $𝑝;
      Normalization.forward(::Type{N}) where {N<:$(esc(name))} = $𝑓;
-     ($(esc(name))){T}(; dims = nothing, p = ntuple(_->Vector{T}(), length($𝑝))) where {T} = $(esc(name))(dims, p);
      )
 end
+(::Type{N})(; dims = nothing, p = ntuple(_->Vector{T}(), length(estimators(N)))) where {T, N<:AbstractNormalization{T}} = N(dims, p);
 
 # * Interface traits
 estimators(::N) where {N<:AbstractNormalization} = estimators(N)
