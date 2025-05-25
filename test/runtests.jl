@@ -646,6 +646,6 @@ end
     # * In-place normalization
     @test_nowarn fit!(T, X)
     Z = normalize(X, T)
-    normalize!(X, T)
+    @test_nowarn normalize!(X, T)
     @test X ≈ Z
 end
