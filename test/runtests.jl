@@ -499,7 +499,7 @@ end
     Z = copy(_X)
     Z = (Z .- mean(filter(!isnan, Z))) ./ std(filter(!isnan, Z))
     @test (Z.≈Y)[2:end] |> !all
-    @test nansafe(iqr)(Y) == 1.35
+    @test nansafe(iqr)(Y) ≈ 1.35
 
     @test !isnothing(params(T))
     @test length(params(T)) == 2
