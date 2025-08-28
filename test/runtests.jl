@@ -537,6 +537,16 @@ end
     @test eltype(X) == eltype(_X) == eltype(T)
 
     @test denormalize(Y, T) ≈ X
+
+    _X = rand(100) * u"V"
+    X = copy(_X)
+    T = fit(UnitEnergy, X)
+    Y = normalize(X, T)
+    @test !isnothing(T.p)
+    @test Normalization.energy(Y) ≈ 1
+    @test eltype(X) == eltype(_X) == eltype(T)
+
+    @test denormalize(Y, T) ≈ X
 end
 
 @testitem "DimensionalData compat" setup = [Setup] begin

@@ -4,7 +4,7 @@ module Normalization
 import LinearAlgebra:   normalize,
                         normalize!
 import StatsAPI: fit, fit!, params
-import InverseFunctions: inverse
+import InverseFunctions: inverse, square
 
 export  fit,
         fit!,

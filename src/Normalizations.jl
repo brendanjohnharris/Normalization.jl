@@ -16,7 +16,7 @@ zscore(𝜇, 𝜎) = @o (_ - 𝜇) / 𝜎 # * But this needs to be mapped over S
 sigmoid(𝜇, 𝜎) = @o inv(1 + exp(-(_ - 𝜇) / 𝜎))
 minmax(l, u) = @o (_ - l) / (u - l)
 center(𝜇) = @o _ - 𝜇
-unitenergy(𝐸) = @o _ / sqrt(𝐸)
+unitenergy(r𝐸) = Base.Fix2(/, r𝐸) # For unitful consistency, the sorted parameter is the root energy
 
 # * noninvertible normalizations
 function outliersuppress(𝜇, 𝜎)
@@ -38,7 +38,7 @@ end
 @_Normalization MinMax (minimum, maximum) minmax
 @_Normalization Center (mean,) center
 
-energy(x) = sum(map(InverseFunctions.square, x))
+energy(x) = map(square, x) |> sum |> sqrt
 @_Normalization UnitEnergy (energy,) unitenergy
 
 @_Normalization OutlierSuppress (mean, std) outliersuppress
