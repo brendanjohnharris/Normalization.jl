@@ -193,13 +193,8 @@ function fit(::Type{𝒯}, X::AbstractArray{A}; dims=nothing) where {A,T,𝒯<:A
     end
     𝒯(dims, ps)
 end
-function fit(::Type{𝒯}, X::AbstractArray{A}; dims=nothing) where {A,𝒯<:AbstractNormalization}
-    dims, nps = dimparams(dims, X)
-    Xs = eachslice(X; dims=negdims(dims, ndims(X)), drop=false)
-    ps = map(estimators(𝒯)) do f
-        reshape(map(f, Xs), nps...)
-    end
-    𝒯{A}(dims, ps)
+function fit(::Type{𝒯}, X::AbstractArray{A}; kwargs...) where {A,𝒯<:AbstractNormalization}
+    fit(𝒯{A}, X; kwargs...)
 end
 fit(N::AbstractNormalization, X::AbstractArray{A}; dims=Normalization.dims(N)) where {A} = fit(typeof(N), X; dims)
 

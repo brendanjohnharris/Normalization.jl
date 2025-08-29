@@ -7,6 +7,7 @@ export ZScore,
     MinMax,
     Center,
     UnitEnergy,
+    UnitPower,
     OutlierSuppress
 
 halfstd(x, args...; kwargs...) = std(x, args...; kwargs...) ./ convert(eltype(x), sqrt(1 - (2 / π)))
@@ -38,7 +39,11 @@ end
 @_Normalization MinMax (minimum, maximum) minmax
 @_Normalization Center (mean,) center
 
-energy(x) = map(square, x) |> sum |> sqrt
-@_Normalization UnitEnergy (energy,) unitenergy
+rootenergy(x::AbstractArray) = sum(abs2, x) |> sqrt # By default, assume unitless, unit sampling period
+@_Normalization UnitEnergy (rootenergy,) unitenergy
+
+rootpower(x) = sqrt(mean(abs2, x))
+unitpower(r𝑃) = Base.Fix2(/, r𝑃)
+@_Normalization UnitPower (rootpower,) unitpower
 
 @_Normalization OutlierSuppress (mean, std) outliersuppress

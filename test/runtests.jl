@@ -543,7 +543,7 @@ end
     T = fit(UnitEnergy, X)
     Y = normalize(X, T)
     @test !isnothing(T.p)
-    @test Normalization.energy(Y) ≈ 1
+    @test Normalization.rootenergy(Y) ≈ 1
     @test eltype(X) == eltype(_X) == eltype(T)
 
     @test denormalize(Y, T) ≈ X
@@ -596,6 +596,16 @@ end
     N = Robust{ZScore}(X; dims=1)
     @test N(X) == Z
     @test !isnothing(params(T))
+
+    _X = rand(100) * u"V"
+    x = DimArray(_X, Ti((1:size(_X, 1)) .* u"s"))
+    T = fit(UnitEnergy, x)
+    y = normalize(x, T)
+    @test !isnothing(T.p)
+    @test Normalization.rootenergy(y) ≈ 1
+    @test unit(eltype(y)) == unit(eltype(sqrt.(1.0 ./ lookup(x)[1])))
+
+    @test denormalize(y, T) ≈ x
 end
 
 @testitem "StatsBase comparison" setup = [Setup] begin

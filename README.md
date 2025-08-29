@@ -71,7 +71,8 @@ Any of these normalizations will work in place of `ZScore` in the examples above
 | `Sigmoid` | $(1 + \exp(-\frac{x-\mu}{\sigma}))^{-1}$ | Map to the interval $(0, 1)$ by applying a sigmoid transformation |
 | `MinMax` | $(x-\inf{x})/(\sup{x}-\inf{x})$ | Scale to the unit interval |
 | `Center` | $x - \mu$ | Subtract the mean |
-| `UnitEnergy` | $x/\sum x^2$ | Scale to have unit energy |
+| `UnitEnergy` | $x/\sqrt{\sum x^2 \cdot \Delta t}$ | Scale to have unit energy |
+| `UnitPower` | $x/\sqrt{\langle x^2 \rangle}$ | Scale to have unit average power |
 | `HalfZScore` | $\sqrt{1-2/\pi} \cdot (x - \inf{x})/\sigma$ | Normalization to the standard half-normal distribution |
 | `OutlierSuppress` | $\max(\min(x, \mu + 5\sigma), \mu - 5\sigma)$ | Clip values outside of $\mu \pm 5\sigma$ |
 
