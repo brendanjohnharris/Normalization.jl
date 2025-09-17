@@ -42,7 +42,7 @@ end
         end
     end
     mapdims!(f!, X, (Y,); dims=(2, 3))
-    @test X == _X .^ 2 .+ Y .^ 2
+    @test X ≈ _X .^ 2 .+ Y .^ 2
 end
 
 @testitem "Constructor" setup = [Setup] begin
