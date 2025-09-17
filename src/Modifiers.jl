@@ -27,7 +27,7 @@ params(N::AbstractModifier) = N |> normalization |> params
 forward(::Type{N}) where {N<:AbstractModifier} = N |> normalization |> forward
 estimators(::Type{ℳ}) where {ℳ<:AbstractModifier} = error("Estimators undefined for $ℳ")
 
-function (::Type{M})(dims, p::Tuple{Vararg{<:AbstractArray{T}}}) where {T,M<:AbstractModifier}
+function (::Type{M})(dims, p::Tuple{Vararg{A}}) where {T,M<:AbstractModifier,A<:AbstractArray{T}}
     (length(unique(length.(p))) == 1) || throw(error("Inconsistent parameter dimensions"))
     norm = normalization(M)(dims, p) # * Should cascade for nested modifiers
     return M(norm)
