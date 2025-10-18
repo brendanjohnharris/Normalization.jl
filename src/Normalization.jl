@@ -82,13 +82,14 @@ const NormUnion = Union{<:AbstractNormalization, Type{<:AbstractNormalization}}
 
 function forward end
 macro _Normalization(name, 𝑝, 𝑓)
-    :(mutable struct $(esc(name)){T} <: AbstractNormalization{T}
-        dims
-        p::NTuple{length($𝑝), AbstractArray{T}}
-     end;
-     Normalization.estimators(::Type{N}) where {N<:$(esc(name))} = $𝑝;
-     Normalization.forward(::Type{N}) where {N<:$(esc(name))} = $𝑓;
-     )
+    quote
+        mutable struct $(esc(name)){T} <: AbstractNormalization{T}
+            dims
+            p::NTuple{length($(esc(𝑝))), AbstractArray{T}}
+        end
+        Normalization.estimators(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑝))
+        Normalization.forward(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑓))
+    end
 end
 (::Type{N})(; dims = nothing, p = ntuple(_->Vector{T}(), length(estimators(N)))) where {T, N<:AbstractNormalization{T}} = N(dims, p);
 

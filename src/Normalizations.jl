@@ -8,7 +8,8 @@ export ZScore,
     Center,
     UnitEnergy,
     UnitPower,
-    OutlierSuppress
+    OutlierSuppress,
+    MinMaxClip
 
 halfstd(x, args...; kwargs...) = std(x, args...; kwargs...) ./ convert(eltype(x), sqrt(1 - (2 / π)))
 
@@ -19,7 +20,7 @@ minmax(l, u) = @o (_ - l) / (u - l)
 center(𝜇) = @o _ - 𝜇
 unitenergy(r𝐸) = Base.Fix2(/, r𝐸) # For unitful consistency, the sorted parameter is the root energy
 
-# * noninvertible normalizations
+# * Non-invertible normalizations
 function outliersuppress(𝜇, 𝜎)
     thr = 5.0
     function _outliersuppress(x)
@@ -28,6 +29,15 @@ function outliersuppress(𝜇, 𝜎)
             return 𝜇 + sign(o) * thr * 𝜎
         else
             return x
+        end
+    end
+end
+function minmaxclip(l, u)
+    function _minmaxclip(x)
+        if l == u
+            return 0.5
+        else
+            return clamp((x - l) / (u - l), 0.0, 1.0)
         end
     end
 end
@@ -46,4 +56,6 @@ rootpower(x) = sqrt(mean(abs2, x))
 unitpower(r𝑃) = Base.Fix2(/, r𝑃)
 @_Normalization UnitPower (rootpower,) unitpower
 
+# * Non-invertible normalizations
 @_Normalization OutlierSuppress (mean, std) outliersuppress
+@_Normalization MinMaxClip (minimum, maximum) minmaxclip
