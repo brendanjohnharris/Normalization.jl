@@ -205,9 +205,9 @@ end
         @test all(isnan, y1)
         @test all(==(0.5), y2)
 
-        x = [-1.0, 5.0]
+        x = [-1.0, 8.0]
         y3 = normalize(x, N)
-        @test y3 == [0.5, 0.5] # Any values will get mapped to 0.5
+        @test y3 == [0.0, 1.0] # Any values other than the input data get mapped to the upper and lower bounds
     end
 end
 

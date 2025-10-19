@@ -35,7 +35,11 @@ end
 function minmaxclip(l, u)
     function _minmaxclip(x)
         if l == u
-            return 0.5
+            if x == u
+                return 0.5
+            else
+                return (x > u) * one(u) # Return 1.0 if x > u, else 0.0
+            end
         else
             return clamp((x - l) / (u - l), 0.0, 1.0)
         end
