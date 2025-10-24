@@ -77,6 +77,8 @@ Any of these normalizations will work in place of `ZScore` in the examples above
 | `HalfZScore` | $\sqrt{1-2/\pi} \cdot (x - \inf{x})/\sigma$ | Normalization to the standard half-normal distribution |
 | `OutlierSuppress` | $\max(\min(x, \mu + 5\sigma), \mu - 5\sigma)$ | Clip values outside of $\mu \pm 5\sigma$ |
 
+> **Note on `MinMax` and constant inputs**  
+> When all values are identical (`min == max`), the standard MinMax formula is undefined; `MinMax` therefore returns `NaN` values for such arrays. If you prefer a bounded fallback, use `MinMaxClip`, which maps constant inputs to the midpoint of the unit interval and clips out-of-range values to `[0, 1]`.
 
 ## Normalization modifiers
 What if the input data contains NaNs or outliers?
