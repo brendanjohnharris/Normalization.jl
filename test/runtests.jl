@@ -64,11 +64,24 @@ end
 
     invnorms = [Center, UnitEnergy, ZScore, Sigmoid, MinMax]
 
-    invnorms = map(invnorms) do invnorm
-        ps = rand(length(Normalization.estimators(invnorm)))
-        return Normalization.forward(invnorm)(ps...)
+    rand_pos() = rand() + 0.25 # keep scales away from zero
+    function rand_params(invnorm)
+        n = length(Normalization.estimators(invnorm))
+        if n == 1
+            return (rand_pos(),) # positive works for Center/UnitEnergy
+        elseif n == 2
+            l = randn()
+            u = abs(l) + rand_pos() # always positive and > l
+            return (l, u)
+        else
+            return rand(n)
+        end
     end
-    @static if !(Sys.ARCH in (:i686,)) # skip on x86/x86_64
+
+    invnorms = map(invnorms) do invnorm
+        Normalization.forward(invnorm)(rand_params(invnorm)...)
+    end
+    @static if !(Sys.ARCH in (:i686,)) # skip on x86
         @info "Testing inverses"
         InverseFunctions.test_inverse.(invnorms, randn())
     end
