@@ -13,7 +13,7 @@ function Normalization._mapdims!(zs::Slices{<:AbstractDimArray}, f, xs::Slices{<
 end
 
 # * Unit power for regular dim arrays
-const RegularIndex = Dimensions.LookupArrays.Sampled{T,R} where {T,R<:AbstractRange}
+const RegularIndex = Dimensions.Sampled{T,R} where {T,R<:AbstractRange}
 const RegularDims = Tuple{Vararg{D}} where {T<:RegularIndex,D<:Dimension{T}}
 const RegularArray = AbstractDimArray{T,N,S} where {T,N,S<:RegularDims}
 
