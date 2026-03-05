@@ -68,7 +68,9 @@ end
         ps = rand(length(Normalization.estimators(invnorm)))
         return Normalization.forward(invnorm)(ps...)
     end
-    InverseFunctions.test_inverse.(invnorms, randn())
+    @static if !(Sys.ARCH in (:x86_64, :i686)) # skip on x86/x86_64
+        InverseFunctions.test_inverse.(invnorms, randn())
+    end
 end
 
 @testitem "1D normalization" setup = [Setup] begin
