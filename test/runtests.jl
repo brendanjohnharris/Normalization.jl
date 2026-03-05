@@ -68,7 +68,8 @@ end
         ps = rand(length(Normalization.estimators(invnorm)))
         return Normalization.forward(invnorm)(ps...)
     end
-    @static if !(Sys.ARCH in (:x86_64, :i686)) # skip on x86/x86_64
+    @static if !(Sys.ARCH in (:i686,)) # skip on x86/x86_64
+        @info "Testing inverses"
         InverseFunctions.test_inverse.(invnorms, randn())
     end
 end
